@@ -719,7 +719,7 @@ initForm();
 // ONEDRIVE SYNC  (appended — does not modify app)
 // ═══════════════════════════════════════════════
 (function(){
-  var OD_ID  = '7246c660-8bd8-41ef-b2d7-06eb88fd3997';
+  var OD_ID  = '5b12ba1d-12b4-46fa-96d9-b22e9bcad746';
   var SCOPES = ['Files.ReadWrite','User.Read'];
   var odApp=null, odFileId=null, odConnected=false;
 
@@ -834,20 +834,32 @@ initForm();
   window.addEventListener('load', async function(){
     try{
       odApp=new msal.PublicClientApplication({
-        auth:{clientId:OD_ID,authority:'https://login.microsoftonline.com/consumers',redirectUri:'https://walsedy.github.io/gastos-casa/'},
-        cache:{cacheLocation:'localStorage',storeAuthStateInCookie:true}
+        auth:{
+          clientId:OD_ID,
+          authority:'https://login.microsoftonline.com/consumers',
+          redirectUri:'https://walsedy.github.io/gastos-casa/'
+        },
+        cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:false}
       });
       await odApp.initialize();
-      var rr=await odApp.handleRedirectPromise().catch(function(){return null;});
-      if(rr&&rr.account){odApp.setActiveAccount(rr.account);await afterLogin(rr.account);return;}
+      var rr=await odApp.handleRedirectPromise().catch(function(e){console.warn('redirect promise',e);return null;});
+      if(rr&&rr.account){
+        odApp.setActiveAccount(rr.account);
+        await afterLogin(rr.account);
+        return;
+      }
       var accs=odApp.getAllAccounts();
-      if(accs.length>0){odApp.setActiveAccount(accs[0]);await afterLogin(accs[0]);return;}
+      if(accs&&accs.length>0){
+        odApp.setActiveAccount(accs[0]);
+        await afterLogin(accs[0]);
+        return;
+      }
       badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
       document.getElementById('od-btn-login').addEventListener('click',async function(){
         document.getElementById('od-modal').style.display='none';
         badge('⏳ Redirigiendo...','#eff6ff','#1d4ed8');
         try{
-          await odApp.loginRedirect({scopes:SCOPES});
+          await odApp.loginRedirect({scopes:SCOPES, prompt:'select_account'});
         }catch(e){
           console.warn('login redirect error',e);
           badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
