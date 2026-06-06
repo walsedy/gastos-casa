@@ -744,7 +744,7 @@ initForm();
       try{
         var pd=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'B1\')?$select=values');
         var val=((pd.values||[['']])[0]||[''])[0];
-        if(val) localStorage.setItem(PREV_KEY,val);
+        if(val) _storageSet(PREV_KEY,val);
       }catch(e){}
       initForm();
       badge('☁️ '+regs.length+' mes'+(regs.length!==1?'es':''),'#f0fdf4','#15803d');
@@ -767,14 +767,54 @@ initForm();
     catch(e){try{var r=await odApp.acquireTokenPopup({scopes:SCOPES});return r.accessToken;}catch(e2){return null;}}
   }
 
+  async function ensureSheets(){
+    // Verificar hojas existentes
+    try{
+      var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name');
+      var names=(sheets.value||[]).map(function(s){return s.name;});
+      // Crear hoja Datos si no existe
+      if(names.indexOf('Datos')===-1){
+        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Datos'})});
+      }
+      // Crear hoja Config si no existe
+      if(names.indexOf('Config')===-1){
+        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})});
+      }
+      // Poner encabezados en Datos
+      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:D1\')',{method:'PATCH',body:JSON.stringify({values:[['Período','JSON','Total','Guardado']]})});
+    }catch(e){console.warn('ensureSheets',e);}
+  }
+
   async function ensureFile(){
     try{
-      var r=await odGraph('/me/drive/root/children?$filter=name eq \'GastosCasa.xlsx\'&$select=id,name');
-      if(r.value&&r.value.length>0){odFileId=r.value[0].id;return;}
-      badge('⏳ Creando Excel...','#eff6ff','#1d4ed8');
+      // Buscar archivo existente
+      var r=await odGraph('/me/drive/root:/GastosCasa:/children?$filter=name eq \'GastosCasa.xlsx\'&$select=id,name').catch(function(){return {value:[]};});
+      if(r.value&&r.value.length>0){
+        odFileId=r.value[0].id;
+        await ensureSheets();
+        return;
+      }
+      // Crear carpeta GastosCasa si no existe
+      badge('⏳ Creando carpeta...','#eff6ff','#1d4ed8');
       var tok=await getToken();
-      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa.xlsx:/content',{method:'PUT',headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},body:new Uint8Array(0)});
-      odFileId=(await cr.json()).id;
+      // Crear carpeta
+      try{
+        await odGraph('/me/drive/root/children',{method:'POST',body:JSON.stringify({name:'GastosCasa',folder:{},'@microsoft.graph.conflictBehavior':'ignore'})});
+      }catch(e){}
+      // Esperar carpeta
+      await new Promise(function(res){setTimeout(res,1500);});
+      // Crear archivo en la carpeta
+      badge('⏳ Creando Excel...','#eff6ff','#1d4ed8');
+      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa.xlsx:/content',{
+        method:'PUT',
+        headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+        body:new Uint8Array([80,75,5,6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+      });
+      var crData=await cr.json();
+      odFileId=crData.id;
+      // Esperar a que OneDrive procese el archivo
+      await new Promise(function(res){setTimeout(res,3000);});
+      await ensureSheets();
     }catch(e){console.warn('ensureFile',e);}
   }
 
@@ -791,13 +831,17 @@ initForm();
     if(!odConnected||!odFileId) return;
     badge('⏳ Guardando...','#eff6ff','#1d4ed8');
     try{
+      await ensureSheets();
       var vals=[['Período','JSON','Total','Guardado']];
-      registros.forEach(function(r){vals.push([r.periodo_label||r.periodo,JSON.stringify(r),(r.total_inq||0).toFixed(2),new Date().toISOString()]);});
-      var pad=vals.concat(Array(Math.max(0,500-vals.length)).fill(['','','','']));
-      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:D500\')',{method:'PATCH',body:JSON.stringify({values:pad})});
+      registros.forEach(function(r){vals.push([r.periodo_label||r.periodo||'',JSON.stringify(r),(r.total_inq||0).toFixed(2),new Date().toISOString()]);});
+      var total=Math.max(vals.length,2);
+      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:D'+total+'\')',{method:'PATCH',body:JSON.stringify({values:vals})});
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
       badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
-    }catch(e){badge('⚠️ Error','#fffbeb','#b45309');}
+    }catch(e){
+      console.warn('saveToCloud error',e);
+      badge('⚠️ Error al guardar','#fffbeb','#b45309');
+    }
   }
 
   async function savePrev(prev){
