@@ -839,14 +839,12 @@ initForm();
       badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
       document.getElementById('od-btn-login').addEventListener('click',async function(){
         document.getElementById('od-modal').style.display='none';
-        badge('⏳ Conectando...','#eff6ff','#1d4ed8');
+        badge('⏳ Redirigiendo...','#eff6ff','#1d4ed8');
         try{
-          var r=await odApp.loginPopup({scopes:SCOPES});
-          odApp.setActiveAccount(r.account);
-          await afterLogin(r.account);
+          await odApp.loginRedirect({scopes:SCOPES});
         }catch(e){
-          if(String(e).includes('popup')){odApp.loginRedirect({scopes:SCOPES});}
-          else{badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');}
+          console.warn('login redirect error',e);
+          badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
         }
       });
     }catch(e){console.warn('OD boot',e);}
