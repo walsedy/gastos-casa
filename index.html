@@ -191,7 +191,11 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
 <div id="pane-historial" class="pane">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
     <div style="font-size:13px;color:var(--muted)" id="hist_count"></div>
-    <div style="display:flex;gap:8px"><button id="od-sync-btn" class="btn btn-sm" style="display:none" onclick="odSync()">🔄 Sincronizar</button><button class="btn btn-sm" onclick="exportarCSV()">⬇ Exportar CSV</button></div>
+    <div style="display:flex;gap:8px">
+      <button id="od-sync-btn" class="btn btn-sm" style="display:none" onclick="odSync()">🔄 Sincronizar</button>
+      <button class="btn btn-sm" onclick="exportarCSV()">⬇ Exportar CSV</button>
+      <button class="btn btn-sm" onclick="resetearTodo()" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;font-weight:700">⚠️ Resetear todo</button>
+    </div>
   </div>
   <div id="historial_container"></div>
 </div>
@@ -699,6 +703,16 @@ function applyDash(regs){
     const GRID='rgba(0,0,0,.06)',TICK='#9a9a9a';
     charts.imp=new Chart(document.getElementById('ch-imp'),{type:'bar',data:{labels:labsI,datasets:[{label:'Real',data:realVals,backgroundColor:'#2563eb',borderRadius:4},{label:'Ausente',data:realVals.map(()=>0),backgroundColor:'#86efac',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{color:TICK,font:{size:11}}},y:{grid:{color:GRID},ticks:{color:TICK,font:{size:11},callback:v=>'S/.'+v}}}}});
   }
+}
+
+// ===================== RESET =====================
+function resetearTodo(){
+  if(!confirm('⚠️ ADVERTENCIA\n\nEsta acción borrará TODOS los datos locales de la aplicación.\n\nEsto no se puede deshacer.\n\n¿Estás seguro?')) return;
+  if(!confirm('🔴 CONFIRMACIÓN FINAL\n\n¿Realmente deseas eliminar todos los registros?\n\nSi tienes datos en OneDrive, estos NO se borrarán allá.')) return;
+  try{ localStorage.clear(); }catch(e){}
+  try{ sessionStorage.clear(); }catch(e){}
+  alert('✅ Datos locales eliminados. La app se reiniciará.');
+  location.reload();
 }
 
 // ===================== START =====================
