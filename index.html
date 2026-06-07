@@ -357,14 +357,29 @@ function calcular(){
   const casa_luz=costo_com, casa_agua=agua_prop;
   const casa_total=casa_luz+casa_agua;
 
+  // Construir diccionarios planos para Excel
+  const dias_hab={}, costo_luz_hab={}, costo_agua_hab={};
+  habitaciones.forEach(function(h){
+    dias_hab[h.hab]=h.dias;
+    costo_luz_hab[h.hab]=h.luz_piso;
+    costo_agua_hab[h.hab]=h.agua;
+  });
+
   mesActual={
     periodo:fa.toLocaleDateString('es-PE',{month:'long',year:'numeric'}),
     periodo_label:fa.toLocaleDateString('es-PE',{month:'short',year:'numeric'})+' – '+fb.toLocaleDateString('es-PE',{month:'short',year:'numeric'}),
     fecha_ant:document.getElementById('fecha_ant').value,
     fecha_act:document.getElementById('fecha_act').value,
     diasTotal,consumo_mp,consumo_m3,consumo_m4,consumo_com,
-    mp_soles:v('mp_soles'),costo_p3,costo_p4,costo_com,tarifa,
-    agua,agua_prop,agua_inq,habitaciones,total_inq,casa_luz,casa_agua
+    mp_kwh:v('mp_kwh'), mp_soles:v('mp_soles'),
+    m3_ant:v('m3_ant'), m3_act:v('m3_act'),
+    m4_ant:v('m4_ant'), m4_act:v('m4_act'),
+    consumo_p3:consumo_m3, consumo_p4:consumo_m4,
+    costo_p3,costo_p4,costo_com,tarifa,
+    agua_total:agua, agua_prop, agua_inq_total:agua_inq,
+    agua, agua_prop, agua_inq,
+    habitaciones, total_inq, casa_luz, casa_agua,
+    dias_hab, costo_luz_hab, costo_agua_hab
   };
 
   // Render resultado
@@ -813,26 +828,46 @@ initForm();
     'P3 Ant kWh','P3 Act kWh','P3 Consumo kWh','P3 S/. Luz',
     'P4 Ant kWh','P4 Act kWh','P4 Consumo kWh','P4 S/. Luz',
     'Agua Total S/.','Agua Propietario S/.','Agua Inquilinos S/.',
-    'HAB301 Días','HAB302 Días','HAB304 Días','HAB305 Días','HAB306 Días',
-    'HAB401 Días','HAB402 Días','HAB403 Días','HAB404 Días','HAB405 Días','HAB406 Días',
-    'Total Inquilinos S/.','Guardado'
+    'HAB301 Días','HAB301 S/.','HAB302 Días','HAB302 S/.',
+    'HAB304 Días','HAB304 S/.','HAB305 Días','HAB305 S/.','HAB306 Días','HAB306 S/.',
+    'HAB401 Días','HAB401 S/.','HAB402 Días','HAB402 S/.',
+    'HAB403 Días','HAB403 S/.','HAB404 Días','HAB404 S/.',
+    'HAB405 Días','HAB405 S/.','HAB406 Días','HAB406 S/.',
+    'Total Inquilinos S/.','Casa Luz S/.','Casa Agua S/.','Guardado'
   ];
+
+  var ALL_HABS_ORDER=['301','302','304','305','306','401','402','403','404','405','406'];
 
   function regToRow(r){
     var dh=r.dias_hab||{};
-    var lu=r.luz_inq||{};
-    var ag=r.agua_inq||{};
+    var cl=r.costo_luz_hab||{};
+    var ca=r.costo_agua_hab||{};
+    // fallback: leer desde habitaciones array si existen los diccionarios vacios
+    if(r.habitaciones&&r.habitaciones.length>0&&Object.keys(dh).length===0){
+      r.habitaciones.forEach(function(h){
+        dh[h.hab]=h.dias;
+        cl[h.hab]=h.luz_piso||0;
+        ca[h.hab]=h.agua||0;
+      });
+    }
+    var habCols=[];
+    ALL_HABS_ORDER.forEach(function(code){
+      var total=(cl[code]||0)+(ca[code]||0);
+      habCols.push(dh[code]||0, parseFloat(total.toFixed(2)));
+    });
     return [
       r.periodo_label||r.periodo||'',
       r.fecha_ant||'', r.fecha_act||'',
-      r.mp_kwh||0, r.mp_soles||0, r.tarifa||0,
-      r.m3_ant||0, r.m3_act||0, r.consumo_p3||0, lu['3']||0,
-      r.m4_ant||0, r.m4_act||0, r.consumo_p4||0, lu['4']||0,
-      r.agua_total||0, r.agua_prop||0, r.agua_inq_total||0,
-      dh['301']||0,dh['302']||0,dh['304']||0,dh['305']||0,dh['306']||0,
-      dh['401']||0,dh['402']||0,dh['403']||0,dh['404']||0,dh['405']||0,dh['406']||0,
-      r.total_inq||0, new Date().toLocaleString('es-PE')
-    ];
+      r.mp_kwh||r.consumo_mp||0, r.mp_soles||0, parseFloat((r.tarifa||0).toFixed(4)),
+      r.m3_ant||0, r.m3_act||0, r.consumo_p3||r.consumo_m3||0, parseFloat((r.costo_p3||0).toFixed(2)),
+      r.m4_ant||0, r.m4_act||0, r.consumo_p4||r.consumo_m4||0, parseFloat((r.costo_p4||0).toFixed(2)),
+      r.agua_total||r.agua||0, parseFloat((r.agua_prop||0).toFixed(2)), parseFloat((r.agua_inq_total||r.agua_inq||0).toFixed(2))
+    ].concat(habCols).concat([
+      parseFloat((r.total_inq||0).toFixed(2)),
+      parseFloat((r.casa_luz||0).toFixed(2)),
+      parseFloat((r.casa_agua||0).toFixed(2)),
+      new Date().toLocaleString('es-PE')
+    ]);
   }
 
   async function ensureSheets(){
