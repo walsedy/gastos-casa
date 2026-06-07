@@ -804,19 +804,18 @@ initForm();
 
   async function ensureSheets(){
     try{
-      var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name');
+      var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name,id');
       var names=(sheets.value||[]).map(function(s){return s.name;});
-      if(names.indexOf('Datos')===-1){
+      // Renombrar Sheet1 → Datos si existe
+      if(names.indexOf('Datos')===-1 && names.indexOf('Sheet1')!==-1){
+        var sid=sheets.value.find(function(s){return s.name==='Sheet1';}).id;
+        try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/'+encodeURIComponent(sid),{method:'PATCH',body:JSON.stringify({name:'Datos'})}); }catch(e){}
+      } else if(names.indexOf('Datos')===-1){
         try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Datos'})}); }catch(e){}
       }
       if(names.indexOf('Config')===-1){
         try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})}); }catch(e){}
       }
-      // Encabezados en Datos
-      var hrange='A1:'+colLetter(HEADERS_DATOS.length)+'1';
-      try{
-        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\''+hrange+'\')',{method:'PATCH',body:JSON.stringify({values:[HEADERS_DATOS]})});
-      }catch(e){ console.warn('headers patch',e); }
     }catch(e){console.warn('ensureSheets',e);}
   }
 
@@ -868,10 +867,12 @@ initForm();
     if(!odConnected||!odFileId) return;
     badge('⏳ Guardando...','#eff6ff','#1d4ed8');
     try{
+      await ensureSheets();
       var vals=[HEADERS_DATOS];
       registros.forEach(function(r){ vals.push(regToRow(r)); });
       var cols=colLetter(HEADERS_DATOS.length);
       var total=vals.length;
+      // Escribir encabezados y datos
       await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:'+cols+total+'\')',{method:'PATCH',body:JSON.stringify({values:vals})});
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
       badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
