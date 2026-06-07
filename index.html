@@ -768,7 +768,11 @@ initForm();
     catch(e){try{var r=await odApp.acquireTokenPopup({scopes:SCOPES});return r.accessToken;}catch(e2){return null;}}
   }
 
-  var HEADERS_DATOS = [
+  function colLetter(n){
+    var s='';
+    while(n>0){ var r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); }
+    return s;
+  }
     'Período','Fecha Ant','Fecha Act',
     'kWh Recibo','S/. Recibo','Tarifa S/./kWh',
     'P3 Ant kWh','P3 Act kWh','P3 Consumo kWh','P3 S/. Luz',
@@ -807,7 +811,7 @@ initForm();
         await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})});
       }
       // Encabezados legibles
-      var hrange='A1:'+String.fromCharCode(64+HEADERS_DATOS.length)+'1';
+      var hrange='A1:'+colLetter(HEADERS_DATOS.length)+'1';
       await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\''+hrange+'\')',{method:'PATCH',body:JSON.stringify({values:[HEADERS_DATOS]})});
     }catch(e){console.warn('ensureSheets',e);}
   }
@@ -863,7 +867,7 @@ initForm();
       await ensureSheets();
       var vals=[HEADERS_DATOS];
       registros.forEach(function(r){ vals.push(regToRow(r)); });
-      var cols=String.fromCharCode(64+HEADERS_DATOS.length);
+      var cols=colLetter(HEADERS_DATOS.length);
       var total=vals.length;
       await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:'+cols+total+'\')',{method:'PATCH',body:JSON.stringify({values:vals})});
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
