@@ -721,7 +721,7 @@ initForm();
 // ═══════════════════════════════════════════════
 (function(){
   var OD_ID  = '5b12ba1d-12b4-46fa-96d9-b22e9bcad746';
-  var SCOPES = ['Files.ReadWrite','User.Read'];
+  var SCOPES = ['Files.ReadWrite.All','User.Read'];
   var odApp=null, odFileId=null, odConnected=false;
 
   function badge(txt,bg,col){
@@ -869,11 +869,23 @@ initForm();
     try{
       await ensureSheets();
       var vals=[HEADERS_DATOS];
-      registros.forEach(function(r){ vals.push(regToRow(r)); });
+      registros.forEach(function(r){
+        var row=regToRow(r).map(function(v){
+          if(v===null||v===undefined) return '';
+          if(typeof v==='number' && !isFinite(v)) return 0;
+          return v;
+        });
+        vals.push(row);
+      });
       var cols=colLetter(HEADERS_DATOS.length);
       var total=vals.length;
-      // Escribir encabezados y datos
-      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:'+cols+total+'\')',{method:'PATCH',body:JSON.stringify({values:vals})});
+      // Escribir en bloques de 10 filas para evitar errores 500
+      for(var i=0;i<total;i+=10){
+        var chunk=vals.slice(i,Math.min(i+10,total));
+        var startRow=i+1;
+        var endRow=startRow+chunk.length-1;
+        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A'+startRow+':'+cols+endRow+'\')',{method:'PATCH',body:JSON.stringify({values:chunk})});
+      }
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
       badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
     }catch(e){
