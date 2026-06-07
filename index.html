@@ -768,21 +768,47 @@ initForm();
     catch(e){try{var r=await odApp.acquireTokenPopup({scopes:SCOPES});return r.accessToken;}catch(e2){return null;}}
   }
 
+  var HEADERS_DATOS = [
+    'Período','Fecha Ant','Fecha Act',
+    'kWh Recibo','S/. Recibo','Tarifa S/./kWh',
+    'P3 Ant kWh','P3 Act kWh','P3 Consumo kWh','P3 S/. Luz',
+    'P4 Ant kWh','P4 Act kWh','P4 Consumo kWh','P4 S/. Luz',
+    'Agua Total S/.','Agua Propietario S/.','Agua Inquilinos S/.',
+    'HAB301 Días','HAB302 Días','HAB304 Días','HAB305 Días','HAB306 Días',
+    'HAB401 Días','HAB402 Días','HAB403 Días','HAB404 Días','HAB405 Días','HAB406 Días',
+    'Total Inquilinos S/.','Guardado'
+  ];
+
+  function regToRow(r){
+    var dh=r.dias_hab||{};
+    var lu=r.luz_inq||{};
+    var ag=r.agua_inq||{};
+    return [
+      r.periodo_label||r.periodo||'',
+      r.fecha_ant||'', r.fecha_act||'',
+      r.mp_kwh||0, r.mp_soles||0, r.tarifa||0,
+      r.m3_ant||0, r.m3_act||0, r.consumo_p3||0, lu['3']||0,
+      r.m4_ant||0, r.m4_act||0, r.consumo_p4||0, lu['4']||0,
+      r.agua_total||0, r.agua_prop||0, r.agua_inq_total||0,
+      dh['301']||0,dh['302']||0,dh['304']||0,dh['305']||0,dh['306']||0,
+      dh['401']||0,dh['402']||0,dh['403']||0,dh['404']||0,dh['405']||0,dh['406']||0,
+      r.total_inq||0, new Date().toLocaleString('es-PE')
+    ];
+  }
+
   async function ensureSheets(){
-    // Verificar hojas existentes
     try{
       var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name');
       var names=(sheets.value||[]).map(function(s){return s.name;});
-      // Crear hoja Datos si no existe
       if(names.indexOf('Datos')===-1){
         await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Datos'})});
       }
-      // Crear hoja Config si no existe
       if(names.indexOf('Config')===-1){
         await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})});
       }
-      // Poner encabezados en Datos
-      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:D1\')',{method:'PATCH',body:JSON.stringify({values:[['Período','JSON','Total','Guardado']]})});
+      // Encabezados legibles
+      var hrange='A1:'+String.fromCharCode(64+HEADERS_DATOS.length)+'1';
+      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\''+hrange+'\')',{method:'PATCH',body:JSON.stringify({values:[HEADERS_DATOS]})});
     }catch(e){console.warn('ensureSheets',e);}
   }
 
@@ -835,10 +861,11 @@ initForm();
     badge('⏳ Guardando...','#eff6ff','#1d4ed8');
     try{
       await ensureSheets();
-      var vals=[['Período','JSON','Total','Guardado']];
-      registros.forEach(function(r){vals.push([r.periodo_label||r.periodo||'',JSON.stringify(r),(r.total_inq||0).toFixed(2),new Date().toISOString()]);});
-      var total=Math.max(vals.length,2);
-      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:D'+total+'\')',{method:'PATCH',body:JSON.stringify({values:vals})});
+      var vals=[HEADERS_DATOS];
+      registros.forEach(function(r){ vals.push(regToRow(r)); });
+      var cols=String.fromCharCode(64+HEADERS_DATOS.length);
+      var total=vals.length;
+      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:'+cols+total+'\')',{method:'PATCH',body:JSON.stringify({values:vals})});
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
       badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
     }catch(e){
