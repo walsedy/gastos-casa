@@ -560,7 +560,7 @@ function renderDashboard(){
         +'</div></div>'
       +'<div style="margin-bottom:10px"><label style="margin-bottom:6px">Vista</label>'
         +'<div class="filter-row">'
-          +['ranking','evolucion','impacto'].map(v=>'<button class="fpill'+(DF.vista===v?' on':'')+'" onclick="setDF(\'vista\',\''+v+'\')">'+({ranking:'🏆 Ranking',evolucion:'📈 Evolución mensual',impacto:'🔄 Impacto ausencia'}[v])+'</button>').join('')
+          +['ranking','evolucion','impacto','variacion'].map(v=>'<button class="fpill'+(DF.vista===v?' on':'')+'" onclick="setDF(\'vista\',\''+v+'\')">'+({ranking:'🏆 Ranking',evolucion:'📈 Evolución mensual',impacto:'🔄 Impacto ausencia',variacion:'⚡ Variación ocupación'}[v])+'</button>').join('')
         +'</div></div>'
       +'<div><label style="margin-bottom:6px">Período</label>'
         +'<div class="filter-row">'
@@ -736,6 +736,110 @@ function applyDash(regs){
     main.innerHTML=html;
     const GRID='rgba(0,0,0,.06)',TICK='#9a9a9a';
     charts.imp=new Chart(document.getElementById('ch-imp'),{type:'bar',data:{labels:labsI,datasets:[{label:'Real',data:realVals,backgroundColor:'#2563eb',borderRadius:4},{label:'Ausente',data:realVals.map(()=>0),backgroundColor:'#86efac',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:GRID},ticks:{color:TICK,font:{size:11}}},y:{grid:{color:GRID},ticks:{color:TICK,font:{size:11},callback:v=>'S/.'+v}}}}});
+  }
+
+  // ---- VISTA: VARIACIÓN DE OCUPACIÓN ----
+  else if(DF.vista==='variacion'){
+    const pisoFil=DF.piso==='todos'?'3':DF.piso;
+    const habsPiso=pisoFil==='3'?HABS_P3:HABS_P4;
+    const keyKwh=pisoFil==='3'?'consumo_p3':'consumo_p4';
+
+    // Estado de selección de hab para variación
+    if(!window._varHab||!habsPiso.includes(window._varHab)) window._varHab=habsPiso[0];
+
+    function calcVar(hab){
+      const con=regs.filter(r=>{ const h=(r.habitaciones||[]).find(x=>x.hab===hab); return h&&h.dias>0; });
+      const sin=regs.filter(r=>{ const h=(r.habitaciones||[]).find(x=>x.hab===hab); return !h||h.dias===0; });
+      const kwh=r=>r[keyKwh]||r.consumo_mp||0;
+      const avg=arr=>arr.length?arr.reduce((s,r)=>s+kwh(r),0)/arr.length:null;
+      const ac=avg(con),as=avg(sin);
+      return {con:ac,sin:as,delta:(ac!==null&&as!==null)?+(ac-as).toFixed(1):null,nCon:con.length,nSin:sin.length,conRegs:con,sinRegs:sin};
+    }
+
+    // Pills de hab
+    const habPillsHtml='<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1rem">'
+      +habsPiso.map(h=>'<button class="fpill'+(h===window._varHab?' on':'')+'" onclick="window._varHab='+h+';renderDashboard()">HAB '+h+'</button>').join('')
+      +'</div>';
+
+    const cv=calcVar(window._varHab);
+    const delta=cv.delta;
+    const promKwh=regs.length?+(regs.reduce((s,r)=>s+(r[keyKwh]||0),0)/regs.length).toFixed(1):0;
+    const pct=delta!==null&&promKwh?Math.round(delta/promKwh*100):null;
+
+    // Insight automático
+    let insightTxt='', insightCol='var(--acc-l)', insightBorder='var(--acc)', insightTextCol='var(--acc-d)';
+    if(delta===null){
+      insightTxt='No hay suficientes meses con y sin HAB '+window._varHab+' ocupada para calcular variación. Necesitas al menos 1 mes en cada estado.';
+    } else if(Math.abs(delta)<10){
+      insightTxt='HAB '+window._varHab+' tiene impacto bajo ('+delta+' kWh) en el Piso '+pisoFil+'. El consumo del piso no varía significativamente con su presencia.';
+      insightCol='var(--bg)'; insightBorder='var(--border)'; insightTextCol='var(--muted)';
+    } else if(delta>0){
+      insightTxt='Cuando HAB '+window._varHab+' está ocupada, el Piso '+pisoFil+' consume +'+(delta)+' kWh más (+'+(pct)+'%). Este inquilino tiene consumo elevado — posibles equipos de alto consumo.';
+      insightCol='var(--err-l)'; insightBorder='#fca5a5'; insightTextCol='var(--err)';
+    } else {
+      insightTxt='Cuando HAB '+window._varHab+' está ocupada, el Piso '+pisoFil+' consume '+(delta)+' kWh menos ('+(pct)+'%). El costo fijo del piso se distribuye entre más personas.';
+      insightCol='var(--ok-l)'; insightBorder='#86efac'; insightTextCol='var(--ok)';
+    }
+
+    // KPI cards
+    const kpiHtml='<div class="g4" style="margin-bottom:1rem">'
+      +'<div class="mc"><div class="mc-l">Con HAB '+window._varHab+' ocupada</div><div class="mc-v" style="color:var(--amb)">'+(cv.con!==null?cv.con.toFixed(1)+'':'—')+' <span style="font-size:13px;font-weight:400;color:var(--muted)">kWh</span></div><div class="mc-s">'+cv.nCon+' mes(es)</div></div>'
+      +'<div class="mc"><div class="mc-l">Con HAB '+window._varHab+' vacía</div><div class="mc-v" style="color:var(--teal)">'+(cv.sin!==null?cv.sin.toFixed(1)+'':'—')+' <span style="font-size:13px;font-weight:400;color:var(--muted)">kWh</span></div><div class="mc-s">'+cv.nSin+' mes(es)</div></div>'
+      +'<div class="mc"><div class="mc-l">Variación detectada</div><div class="mc-v" style="color:'+(delta===null?'var(--muted)':delta>0?'var(--err)':'var(--ok)')+'">'+(delta!==null?(delta>0?'+':'')+delta+' kWh':'—')+'</div><div class="mc-s">'+(pct!==null?(pct>0?'+':'')+pct+'% del promedio':'sin datos')+'</div></div>'
+      +'<div class="mc"><div class="mc-l">Promedio piso '+pisoFil+'</div><div class="mc-v">'+promKwh+' <span style="font-size:13px;font-weight:400;color:var(--muted)">kWh</span></div><div class="mc-s">todos los meses</div></div>'
+      +'</div>';
+
+    // Chart con vs sin por mes
+    const labels=regs.map(r=>r.periodo_label||r.periodo);
+    const kwhData=regs.map(r=>+(r[keyKwh]||0).toFixed(1));
+    const barColors=regs.map(r=>{ const h=(r.habitaciones||[]).find(x=>x.hab===window._varHab); return (h&&h.dias>0)?'#EF9F27':'#5DCAA5'; });
+    const borderColors=regs.map(r=>{ const h=(r.habitaciones||[]).find(x=>x.hab===window._varHab); return (h&&h.dias>0)?'#BA7517':'#0F6E56'; });
+    const promLine=regs.map(()=>promKwh);
+
+    // Impacto comparativo todas las habs del piso
+    const impData=habsPiso.map(h=>{
+      const cv2=calcVar(h);
+      return {hab:h,con:cv2.con,sin:cv2.sin,delta:cv2.delta};
+    });
+
+    let html='<div class="card">'
+      +'<div class="card-title"><div class="icon i-amb">⚡</div> Análisis de variación — Piso '+pisoFil+'</div>'
+      +habPillsHtml
+      +kpiHtml
+      +'<div class="alert" style="background:'+insightCol+';color:'+insightTextCol+';border:1px solid '+insightBorder+';margin-bottom:1rem">'+insightTxt+'</div>'
+      +'<div class="ph">Consumo del piso por mes — naranja = ocupada · verde = vacía</div>'
+      +'<div class="leg"><div class="leg-i"><div class="ld" style="background:#EF9F27"></div>HAB '+window._varHab+' ocupada</div><div class="leg-i"><div class="ld" style="background:#5DCAA5"></div>HAB '+window._varHab+' vacía</div></div>'
+      +'<div style="position:relative;height:220px;margin-top:8px"><canvas id="ch-var-cvs"></canvas></div>'
+      +'</div>';
+
+    html+='<div class="card">'
+      +'<div class="card-title"><div class="icon i-teal">📊</div> Impacto comparativo — todas las habs del Piso '+pisoFil+'</div>'
+      +'<div class="alert al-info">Comparación del consumo kWh del piso cuando cada habitación está ocupada vs vacía. Permite identificar quién consume más.</div>'
+      +'<div class="leg" style="margin-bottom:8px"><div class="leg-i"><div class="ld" style="background:#EF9F27"></div>Con inquilino</div><div class="leg-i"><div class="ld" style="background:#5DCAA5"></div>Sin inquilino</div></div>'
+      +'<div style="position:relative;height:'+Math.max(180,impData.filter(x=>x.con!==null||x.sin!==null).length*52+60)+'px"><canvas id="ch-var-imp"></canvas></div>'
+      +'</div>';
+
+    main.innerHTML=html;
+    const GRID='rgba(0,0,0,.06)',TICK='#9a9a9a';
+
+    charts.varCvs=new Chart(document.getElementById('ch-var-cvs'),{
+      type:'bar',
+      data:{labels,datasets:[
+        {label:'kWh piso',data:kwhData,backgroundColor:barColors,borderColor:borderColors,borderWidth:1,borderRadius:4,borderSkipped:false},
+        {label:'Promedio',data:promLine,type:'line',borderColor:'#85B7EB',borderDash:[4,3],borderWidth:1.5,pointRadius:0,fill:false},
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.datasetIndex===0?(kwhData[c.dataIndex]+' kWh'):'Prom: '+c.parsed.y+' kWh'}}},scales:{x:{grid:{display:false},ticks:{color:TICK,font:{size:11}}},y:{grid:{color:GRID},ticks:{color:TICK,font:{size:11},callback:v=>v+' kWh'}}}}
+    });
+
+    const impFil=impData.filter(x=>x.con!==null||x.sin!==null);
+    charts.varImp=new Chart(document.getElementById('ch-var-imp'),{
+      type:'bar',
+      data:{labels:impFil.map(x=>'HAB '+x.hab),datasets:[
+        {label:'Con inquilino',data:impFil.map(x=>x.con??0),backgroundColor:'#EF9F27',borderRadius:4,borderSkipped:false},
+        {label:'Sin inquilino',data:impFil.map(x=>x.sin??0),backgroundColor:'#5DCAA5',borderRadius:4,borderSkipped:false},
+      ]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.x.toFixed(1)+' kWh prom.'}}},scales:{x:{grid:{color:GRID},ticks:{color:TICK,font:{size:11},callback:v=>v+' kWh'}},y:{grid:{display:false},ticks:{color:TICK,font:{size:11}}}}}
+    });
   }
 }
 
