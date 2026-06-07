@@ -773,6 +773,8 @@ initForm();
     while(n>0){ var r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); }
     return s;
   }
+
+  var HEADERS_DATOS = [
     'Período','Fecha Ant','Fecha Act',
     'kWh Recibo','S/. Recibo','Tarifa S/./kWh',
     'P3 Ant kWh','P3 Act kWh','P3 Consumo kWh','P3 S/. Luz',
@@ -805,14 +807,16 @@ initForm();
       var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name');
       var names=(sheets.value||[]).map(function(s){return s.name;});
       if(names.indexOf('Datos')===-1){
-        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Datos'})});
+        try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Datos'})}); }catch(e){}
       }
       if(names.indexOf('Config')===-1){
-        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})});
+        try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})}); }catch(e){}
       }
-      // Encabezados legibles
+      // Encabezados en Datos
       var hrange='A1:'+colLetter(HEADERS_DATOS.length)+'1';
-      await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\''+hrange+'\')',{method:'PATCH',body:JSON.stringify({values:[HEADERS_DATOS]})});
+      try{
+        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\''+hrange+'\')',{method:'PATCH',body:JSON.stringify({values:[HEADERS_DATOS]})});
+      }catch(e){ console.warn('headers patch',e); }
     }catch(e){console.warn('ensureSheets',e);}
   }
 
@@ -827,11 +831,11 @@ initForm();
       }
       badge('⏳ Creando carpeta...','#eff6ff','#1d4ed8');
       var tok=await getToken();
-      // Crear carpeta GastosCasa
+      // Crear carpeta GastosCasa (ignorar si ya existe)
       try{
         await odGraph('/me/drive/root/children',{method:'POST',body:JSON.stringify({name:'GastosCasa',folder:{},'@microsoft.graph.conflictBehavior':'ignore'})});
-      }catch(e){}
-      await new Promise(function(res){setTimeout(res,1500);});
+      }catch(e){ console.warn('folder may exist',e); }
+      await new Promise(function(res){setTimeout(res,2000);});
       badge('⏳ Creando Excel...','#eff6ff','#1d4ed8');
       // Crear xlsx válido con ExcelJS
       var wb = new ExcelJS.Workbook();
@@ -864,7 +868,6 @@ initForm();
     if(!odConnected||!odFileId) return;
     badge('⏳ Guardando...','#eff6ff','#1d4ed8');
     try{
-      await ensureSheets();
       var vals=[HEADERS_DATOS];
       registros.forEach(function(r){ vals.push(regToRow(r)); });
       var cols=colLetter(HEADERS_DATOS.length);
