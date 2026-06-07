@@ -850,9 +850,10 @@ initForm();
       }catch(e){ console.warn('folder may exist',e); }
       await new Promise(function(res){setTimeout(res,2000);});
       badge('⏳ Creando Excel...','#eff6ff','#1d4ed8');
-      // Crear xlsx válido con ExcelJS
+      // Crear xlsx válido con ExcelJS con columnas correctas
       var wb = new ExcelJS.Workbook();
-      wb.addWorksheet('Datos').addRow(['Período','JSON','Total','Guardado']);
+      var wsDatos = wb.addWorksheet('Datos');
+      wsDatos.addRow(HEADERS_DATOS);
       wb.addWorksheet('Config').addRow(['prev_data','']);
       var buf = await wb.xlsx.writeBuffer();
       var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa.xlsx:/content',{
