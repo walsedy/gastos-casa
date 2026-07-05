@@ -229,10 +229,11 @@ function getSavedPrev(){ try{ return JSON.parse(localStorage.getItem(PREV_KEY)||
 
 // ===================== TABS =====================
 function showTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>{ el.classList.toggle('active',['datos','historial','dashboard'][i]===t); });
+  document.querySelectorAll('.tab').forEach((el,i)=>{ el.classList.toggle('active',['datos','historial','reportes','dashboard'][i]===t); });
   document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
   document.getElementById('pane-'+t).classList.add('active');
   if(t==='historial') renderHistorial();
+  if(t==='reportes') renderReportes();
   if(t==='dashboard') renderDashboard();
 }
 
@@ -919,27 +920,6 @@ function imprimirReporte(){
 // ═══════════════════════════════════════════════
 // ONEDRIVE SYNC  (appended — does not modify app)
 // ===================== REPORTES POR MES =====================
-function renderReportes(){
-  const regs = getRegistros();
-  const cont = document.getElementById('reportes_container');
-  if(!regs.length){
-    cont.innerHTML='<div class="empty-st"><div class="ei">📄</div><p>Aún no hay meses guardados.</p></div>';
-    return;
-  }
-
-  // Build month selector
-  const opts = [...regs].reverse().map(r=>'<option value="'+r.fecha_act+'">'+(r.periodo_label||r.periodo)+'</option>').join('');
-  cont.innerHTML =
-    '<div class="card" style="margin-bottom:1rem">'
-    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<div style="font-size:14px;font-weight:600">📄 Reporte por habitación</div>'
-    +'<select id="rep-mes-sel" onchange="renderReporteDetalle()" style="max-width:220px;padding:7px 10px;font-size:13px;border-radius:var(--rs);border:1px solid var(--bs);background:var(--bg);color:var(--text);font-family:inherit">'+opts+'</select>'
-    +'<button onclick="imprimirReporte()" class="btn btn-sm" style="margin-left:auto">🖨 Imprimir</button>'
-    +'</div></div>'
-    +'<div id="rep-detalle"></div>';
-
-  renderReporteDetalle();
-}
 
 function renderReporteDetalle(){
   const sel = document.getElementById('rep-mes-sel');
