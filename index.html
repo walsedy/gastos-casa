@@ -788,16 +788,46 @@ initForm();
       var d=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/usedRange?$select=values');
       var rows=(d.values||[]).slice(1);
       var regs=[];
-      rows.forEach(function(r){if(r[0])try{regs.push(JSON.parse(r[1]));}catch(e){}});
+      rows.forEach(function(r){
+        if(!r||!r[0]) return;
+        // Try JSON col B first (new format)
+        try{var obj=JSON.parse(r[1]);if(obj&&obj.fecha_act){regs.push(obj);return;}}catch(e){}
+        // Fall back: read column format (existing Excel with separate columns)
+        var n=function(v){return parseFloat(v)||0;};
+        var fmtD=function(d){
+          if(!d) return '';
+          if(typeof d==='string'){if(d.includes('/')){var p=d.split('/');return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}return d.substring(0,10);}
+          if(typeof d==='number'){return new Date((d-25569)*86400000).toISOString().split('T')[0];}
+          return String(d);
+        };
+        var fc=fmtD(r[2]); if(!fc) return;
+        var pl=String(r[0]).trim();
+        var mp=n(r[3]),ms=n(r[4]),tar=n(r[5]);
+        var cm3=n(r[8]),cp3=n(r[9]),cm4=n(r[12]),cp4=n(r[13]);
+        var ag=n(r[14]),agp=n(r[15]),agi=n(r[16]);
+        var com=Math.max(0,mp-cm3-cm4);
+        var habDefs=[[301,3,17],[302,3,19],[304,3,21],[305,3,23],[306,3,25],[401,4,27],[402,4,29],[403,4,31],[404,4,33],[405,4,35],[406,4,37]];
+        var habs=habDefs.map(function(hd){return {piso:hd[1],hab:hd[0],dias:n(r[hd[2]]),luz_piso:0,luz_com:0,agua:0,total:n(r[hd[2]+1])};});
+        var ti=n(r[39])||habs.reduce(function(s,h){return s+h.total;},0);
+        var months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        var ya=fc.split('-'); var per=ya.length>1?(months[parseInt(ya[1])-1]+' de '+ya[0]):pl;
+        regs.push({periodo:per,periodo_label:pl,fecha_ant:fmtD(r[1]),fecha_act:fc,diasTotal:31,
+          consumo_mp:mp,mp_soles:ms,tarifa:tar,consumo_m3:cm3,consumo_m4:cm4,consumo_com:com,
+          costo_p3:cp3,costo_p4:cp4,costo_com:com*tar,agua:ag,agua_prop:agp,agua_inq:agi,
+          casa_luz:n(r[40])||com*tar,casa_agua:n(r[41])||agp,total_inq:ti,habitaciones:habs});
+      });
       if(regs.length>0){regs.sort(function(a,b){return a.fecha_act.localeCompare(b.fecha_act);});saveRegistros(regs);}
       try{
         var pd=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'B1\')?$select=values');
         var val=((pd.values||[['']])[0]||[''])[0];
         if(val) _storageSet(PREV_KEY,val);
       }catch(e){}
+      if(!localStorage.getItem(PREV_KEY)&&regs.length>0){
+        _storageSet(PREV_KEY,JSON.stringify({fecha_act:'2026-05-15',m3_act:10769.2,m4_act:13451.8}));
+      }
       initForm();
       badge('☁️ '+regs.length+' mes'+(regs.length!==1?'es':''),'#f0fdf4','#15803d');
-    }catch(e){badge('☁️ Sin datos aún','#fffbeb','#b45309');}
+    }catch(e){console.warn('odSync:',e);badge('⚠️ Error sync','#fffbeb','#b45309');}
   };
 
   async function odGraph(path,opts){
