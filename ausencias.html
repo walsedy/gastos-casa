@@ -5,82 +5,151 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Ausencias — Gastos de Casa</title>
 <style>
-:root{--bg:#f5f4f0;--surface:#fff;--border:rgba(0,0,0,.10);--bs:rgba(0,0,0,.18);--text:#1a1a1a;--muted:#6b6b6b;--hint:#9a9a9a;--acc:#2563eb;--acc-l:#eff6ff;--acc-d:#1d4ed8;--ok:#15803d;--ok-l:#f0fdf4;--err:#b91c1c;--err-l:#fef2f2;--warn:#b45309;--warn-l:#fffbeb;--r:10px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.08)}
+:root{--bg:#f0efe9;--surface:#fff;--border:rgba(0,0,0,.09);--bs:rgba(0,0,0,.16);--text:#1a1a1a;--muted:#6b6b6b;--hint:#aaa;--acc:#2563eb;--acc-l:#eff6ff;--acc-d:#1d4ed8;--ok:#15803d;--ok-l:#f0fdf4;--ok-b:#86efac;--err:#b91c1c;--err-l:#fef2f2;--err-b:#fca5a5;--warn:#92400e;--warn-l:#fffbeb;--warn-b:#fcd34d;--r:12px;--rs:8px;--sh:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05)}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;gap:1rem;height:56px;position:sticky;top:0;z-index:100;box-shadow:var(--sh)}
-header h1{font-size:16px;font-weight:600}
-.container{max-width:960px;margin:0 auto;padding:1.5rem 1.5rem 4rem}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;gap:12px;height:58px;position:sticky;top:0;z-index:200;box-shadow:var(--sh)}
+.h-icon{width:36px;height:36px;background:#1e3a5f;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+header h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
+#h-periodo{font-size:12px;color:var(--muted);background:var(--bg);padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
+.h-link{margin-left:auto;font-size:12px;color:var(--acc);text-decoration:none;font-weight:600;padding:6px 12px;border-radius:var(--rs);border:1px solid var(--border)}
+.h-link:hover{background:var(--acc-l)}
+/* LAYOUT */
+.container{max-width:920px;margin:0 auto;padding:1.5rem 1.5rem 5rem}
+/* TABS */
 .tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:1.5rem;box-shadow:var(--sh)}
-.tab{flex:1;padding:8px 12px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;text-align:center;color:var(--muted);border:none;background:transparent;transition:all .15s;font-family:inherit}
-.tab.active{background:var(--acc);color:#fff}
+.tab{flex:1;padding:9px 12px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;text-align:center;color:var(--muted);border:none;background:transparent;transition:all .15s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
+.tab:hover{background:var(--bg)}
+.tab.active{background:#1e3a5f;color:#fff}
 .pane{display:none}.pane.active{display:block}
+/* CARD */
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--sh)}
-.card-title{font-size:14px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
-label{font-size:12px;color:var(--muted);font-weight:500;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em}
-select,input[type=date],input[type=text]{width:100%;padding:8px 10px;font-size:14px;border-radius:var(--rs);border:1px solid var(--bs);background:var(--bg);color:var(--text);font-family:inherit;outline:none}
-select:focus,input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card-title{font-size:14px;font-weight:600;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;color:var(--text)}
+.card-title .ct-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.ct-blue{background:#dbeafe}.ct-green{background:#dcfce7}.ct-yellow{background:#fef9c3}.ct-red{background:#fee2e2}.ct-gray{background:#f3f4f6}
+/* FORM */
+label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+select,input[type=date],input[type=text]{width:100%;padding:9px 12px;font-size:14px;border-radius:var(--rs);border:1px solid var(--bs);background:#fafaf8;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
+select:focus,input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99,235,.12);background:var(--surface)}
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.btn{padding:8px 16px;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--bs);background:var(--surface);color:var(--text);font-family:inherit;transition:all .15s}
+/* BUTTONS */
+.btn{padding:9px 18px;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--bs);background:var(--surface);color:var(--text);font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
 .btn:hover{background:var(--bg)}
-.btn-p{background:var(--acc);color:#fff;border-color:var(--acc-d)}.btn-p:hover{background:var(--acc-d)}
+.btn:active{transform:scale(.98)}
+.btn-p{background:#1e3a5f;color:#fff;border-color:#122540}.btn-p:hover{background:#162d4a}
 .btn-ok{background:var(--ok);color:#fff;border-color:#166534}.btn-ok:hover{background:#166534}
+.btn-salida{background:#fff7ed;color:#c2410c;border-color:#fed7aa}.btn-salida:hover{background:#ffedd5}
+.btn-regreso{background:#f0fdf4;color:#15803d;border-color:#86efac}.btn-regreso:hover{background:#dcfce7}
 .btn-sm{padding:5px 10px;font-size:12px}
-.btn-del{color:var(--err);border-color:#fca5a5}.btn-del:hover{background:var(--err-l)}
-.btn-warn{color:var(--warn);border-color:#fcd34d}.btn-warn:hover{background:var(--warn-l)}
-.mc{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px}
-.mc-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px}
-.mc-v{font-size:22px;font-weight:700}
-.rt{width:100%;border-collapse:collapse;font-size:13px}
-.rt th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 10px;border-bottom:1px solid var(--border)}
-.rt td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
-.rt tbody tr:hover td{background:var(--bg)}
-.rt tr:last-child td{border-bottom:none}
-.rt-wrap{overflow-x:auto;border-radius:var(--rs);border:1px solid var(--border)}
-.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px}
-.b-ok{background:var(--ok-l);color:var(--ok)}
-.b-err{background:var(--err-l);color:var(--err)}
-.b-warn{background:var(--warn-l);color:var(--warn)}
+.btn-del{color:var(--err);border-color:var(--err-b)}.btn-del:hover{background:var(--err-l)}
+.btn-edit{color:var(--acc);border-color:#93c5fd}.btn-edit:hover{background:var(--acc-l)}
+/* METRIC CARDS */
+.mc{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px}
+.mc-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-weight:500}
+.mc-v{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.mc-s{font-size:12px;color:var(--hint);margin-top:2px}
+.mc.ok{background:var(--ok-l);border-color:var(--ok-b)}.mc.ok .mc-l{color:var(--ok)}.mc.ok .mc-v{color:var(--ok)}
+.mc.err{background:var(--err-l);border-color:var(--err-b)}.mc.err .mc-l{color:var(--err)}.mc.err .mc-v{color:var(--err)}
+.mc.warn{background:var(--warn-l);border-color:var(--warn-b)}.mc.warn .mc-l{color:var(--warn)}.mc.warn .mc-v{color:var(--warn)}
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.b-ok{background:var(--ok-l);color:var(--ok);border:1px solid var(--ok-b)}
+.b-err{background:var(--err-l);color:var(--err);border:1px solid var(--err-b)}
+.b-warn{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn-b)}
 .b-neutral{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
-.note{background:var(--acc-l);border:1px solid #93c5fd;border-radius:var(--rs);padding:8px 12px;font-size:12px;color:var(--acc-d);margin-bottom:1rem}
-.warn-box{background:var(--warn-l);border:1px solid #fcd34d;border-radius:var(--rs);padding:8px 12px;font-size:12px;color:var(--warn);margin-bottom:1rem}
-.piso-hdr{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.hab-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px}
-.hab-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.hab-tag{font-size:13px;font-weight:700;color:var(--text)}
-.mov-list{font-size:12px;color:var(--muted);margin-bottom:6px}
-.mov-item{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:0.5px solid var(--border)}
-.mov-item:last-child{border-bottom:none}
-.periodo-badge{font-size:11px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--text)}
-.alert-ok{background:var(--ok-l);border:1px solid #86efac;border-radius:var(--rs);padding:10px 14px;font-size:13px;color:var(--ok);margin-bottom:12px}
-@media(max-width:600px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}}
-@media print{header,.no-print{display:none}body{background:#fff}}
+.b-blue{background:var(--acc-l);color:var(--acc-d);border:1px solid #93c5fd}
+/* HAB CARDS */
+.hab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.hab-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem;transition:box-shadow .15s}
+.hab-card:hover{box-shadow:var(--sh)}
+.hab-card.has-movs{border-left:3px solid var(--acc)}
+.hab-card.pendiente{border-left:3px solid #f59e0b}
+.hab-card.completo-sin-movs{border-left:3px solid #d1d5db}
+.hab-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.hab-num{font-size:15px;font-weight:700;color:#1e3a5f}
+.hab-actions{display:flex;gap:5px}
+.mov-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--rs);background:var(--bg);margin-bottom:4px;font-size:12px}
+.mov-item:last-child{margin-bottom:0}
+.mov-ico{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+.mov-ico.salida{background:#fff7ed}
+.mov-ico.regreso{background:#f0fdf4}
+.mov-info{flex:1}
+.mov-tipo{font-weight:600;font-size:12px}
+.mov-fecha{color:var(--muted);font-size:11px}
+.mov-nota{color:var(--hint);font-style:italic;font-size:11px}
+.mov-btns{display:flex;gap:4px}
+/* TABLE */
+.rt{width:100%;border-collapse:collapse;font-size:13px}
+.rt th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
+.rt td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.rt tbody tr:hover td{background:#fafaf8}
+.piso-hdr td{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 12px}
+/* ALERTS */
+.alert{padding:10px 14px;border-radius:var(--rs);font-size:13px;font-weight:500;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px}
+.alert-ok{background:var(--ok-l);color:var(--ok);border:1px solid var(--ok-b)}
+.alert-warn{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn-b)}
+.alert-err{background:var(--err-l);color:var(--err);border:1px solid var(--err-b)}
+.alert-info{background:var(--acc-l);color:var(--acc-d);border:1px solid #93c5fd}
+/* MODAL */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;padding:1rem}
+#modal-overlay.show{display:flex}
+#modal-box{background:var(--surface);border-radius:var(--r);max-width:440px;width:100%;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.2);position:relative}
+/* MISC */
+.piso-section{margin-bottom:1.5rem}
+.piso-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.empty-hab{font-size:12px;color:var(--hint);padding:4px 0}
+@media(max-width:600px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}.hab-grid{grid-template-columns:1fr}}
+@media print{header,.no-print{display:none!important}body{background:#fff}}
 </style>
 </head>
 <body>
+
+<!-- MODAL EDIT -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal-box">
+    <div style="font-size:16px;font-weight:600;margin-bottom:1.25rem" id="modal-title">Editar movimiento</div>
+    <div class="g2" style="margin-bottom:12px">
+      <div><label>Tipo</label>
+        <select id="edit-tipo">
+          <option value="salida">🚪 Salida</option>
+          <option value="regreso">🏠 Regreso</option>
+        </select>
+      </div>
+      <div><label>Fecha</label><input type="date" id="edit-fecha"></div>
+    </div>
+    <div style="margin-bottom:16px"><label>Nota (opcional)</label><input type="text" id="edit-nota" placeholder="Ej: Viaje de trabajo..."></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-p" onclick="guardarEdicion()">💾 Guardar cambios</button>
+    </div>
+    <div id="modal-msg" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <header>
-  <div style="font-size:22px">🏠</div>
+  <div class="h-icon">🏠</div>
   <h1>Control de Ausencias</h1>
-  <span id="periodo-badge" style="font-size:12px;color:var(--muted);background:var(--bg);padding:3px 10px;border-radius:20px;border:1px solid var(--border)"></span>
-  <a href="https://walsedy.github.io/gastos-casa/" style="margin-left:auto;font-size:12px;color:var(--acc);text-decoration:none;font-weight:600" class="no-print">← Sistema principal</a>
+  <span id="h-periodo"></span>
+  <a href="https://walsedy.github.io/gastos-casa/" class="h-link no-print">← Sistema principal</a>
 </header>
 
 <div class="container">
   <div class="tabs">
-    <button class="tab active" onclick="showTab('registrar')">📝 Registrar movimiento</button>
-    <button class="tab" onclick="showTab('seguimiento')">📋 Seguimiento del mes</button>
+    <button class="tab active" onclick="showTab('registrar')">📝 Registrar</button>
+    <button class="tab" onclick="showTab('seguimiento')">👁 Seguimiento</button>
     <button class="tab" onclick="showTab('reporte')">📊 Reporte final</button>
   </div>
 
-  <!-- TAB: REGISTRAR -->
+  <!-- REGISTRAR -->
   <div id="pane-registrar" class="pane active">
     <div class="card">
-      <div class="card-title">📅 Período activo</div>
+      <div class="card-title"><div class="ct-icon ct-blue">📅</div> Período de lectura</div>
       <div class="g2">
-        <div>
-          <label>Mes del período</label>
+        <div><label>Mes del período</label>
           <select id="mes" onchange="onMesChange()">
             <option value="2026-01">Enero 2026</option><option value="2026-02">Febrero 2026</option>
             <option value="2026-03">Marzo 2026</option><option value="2026-04">Abril 2026</option>
@@ -90,96 +159,87 @@ select:focus,input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
             <option value="2026-11">Noviembre 2026</option><option value="2026-12">Diciembre 2026</option>
           </select>
         </div>
-        <div style="display:flex;align-items:flex-end">
-          <div id="periodo-info" style="font-size:13px;color:var(--muted);font-weight:500"></div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px">
+          <div id="periodo-info" style="font-size:13px;color:var(--muted);font-weight:500;line-height:1.4"></div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">🚪 Registrar salida o regreso</div>
-      <div class="note">Registra cada vez que un inquilino sale o regresa. El sistema acumula los movimientos y calcula los días al final del mes.</div>
+      <div class="card-title"><div class="ct-icon ct-yellow">🚪</div> Nuevo movimiento</div>
+      <div class="alert alert-info" style="margin-bottom:1.25rem">
+        <span>ℹ️</span>
+        <span>Registra cada salida y regreso durante el mes. Las habitaciones <strong>sin movimientos</strong> se consideran presentes todo el período automáticamente.</span>
+      </div>
       <div class="g3" style="margin-bottom:12px">
-        <div>
-          <label>Habitación</label>
+        <div><label>Habitación</label>
           <select id="hab_sel">
-            <optgroup label="Piso 3">
+            <optgroup label="— Piso 3 —">
               <option value="301">Hab 301</option><option value="302">Hab 302</option>
               <option value="304">Hab 304</option><option value="305">Hab 305</option><option value="306">Hab 306</option>
             </optgroup>
-            <optgroup label="Piso 4">
+            <optgroup label="— Piso 4 —">
               <option value="401">Hab 401</option><option value="402">Hab 402</option><option value="403">Hab 403</option>
               <option value="404">Hab 404</option><option value="405">Hab 405</option><option value="406">Hab 406</option>
             </optgroup>
           </select>
         </div>
-        <div>
-          <label>Tipo</label>
+        <div><label>Tipo de movimiento</label>
           <select id="tipo_mov">
             <option value="salida">🚪 Salida</option>
             <option value="regreso">🏠 Regreso</option>
           </select>
         </div>
-        <div>
-          <label>Fecha</label>
-          <input type="date" id="fecha_mov">
-        </div>
+        <div><label>Fecha</label><input type="date" id="fecha_mov"></div>
       </div>
-      <div style="margin-bottom:12px">
-        <label>Nota (opcional)</label>
-        <input type="text" id="nota_mov" placeholder="Ej: Viaje de trabajo, vacaciones...">
+      <div style="margin-bottom:16px"><label>Nota (opcional)</label>
+        <input type="text" id="nota_mov" placeholder="Ej: Viaje de trabajo, vacaciones familiares...">
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn btn-p" onclick="registrarMovimiento()">✅ Registrar</button>
+        <button class="btn btn-p" onclick="registrarMov()">✅ Registrar movimiento</button>
       </div>
-      <div id="reg_msg" style="margin-top:10px"></div>
+      <div id="reg_msg" style="margin-top:12px"></div>
     </div>
   </div>
 
-  <!-- TAB: SEGUIMIENTO -->
+  <!-- SEGUIMIENTO -->
   <div id="pane-seguimiento" class="pane">
-    <div id="seguimiento_content"></div>
+    <div id="seg_content"></div>
   </div>
 
-  <!-- TAB: REPORTE -->
+  <!-- REPORTE -->
   <div id="pane-reporte" class="pane">
-    <div id="reporte_content"></div>
+    <div id="rep_content"></div>
   </div>
 </div>
 
 <script>
-const HABS_P3 = [301,302,304,305,306];
-const HABS_P4 = [401,402,403,404,405,406];
-const ALL_HABS = [...HABS_P3,...HABS_P4];
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const STORE = 'ausencias_v1';
+const HABS_P3=[301,302,304,305,306], HABS_P4=[401,402,403,404,405,406];
+const ALL_HABS=[...HABS_P3,...HABS_P4];
+const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const STORE='ausencias_v2';
+let editState=null;
 
-function getStore(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
-function saveStore(d){ localStorage.setItem(STORE,JSON.stringify(d)); }
-
-function getMes(){ return document.getElementById('mes').value; }
+function getStore(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){return {}}}
+function saveStore(d){localStorage.setItem(STORE,JSON.stringify(d))}
+function getMes(){return document.getElementById('mes').value}
 
 function getPeriodo(){
-  const m = getMes();
-  const [y,mo] = m.split('-').map(Number);
-  const ini = new Date(y,mo-1,15);
-  const fin = mo===12 ? new Date(y+1,0,15) : new Date(y,mo,15);
-  const dias = Math.round((fin-ini)/86400000);
-  return { ini, fin, dias,
-    iniStr: ini.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'}),
-    finStr: fin.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'}),
-    iniISO: ini.toISOString().split('T')[0],
-    finISO: fin.toISOString().split('T')[0]
-  };
+  const m=getMes(), [y,mo]=m.split('-').map(Number);
+  const ini=new Date(y,mo-1,15);
+  const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
+  const dias=Math.round((fin-ini)/86400000);
+  const fmt=d=>d.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'});
+  return {ini,fin,dias,iniStr:fmt(ini),finStr:fmt(fin),
+    iniISO:ini.toISOString().split('T')[0],finISO:fin.toISOString().split('T')[0]};
 }
 
 function onMesChange(){
-  const p = getPeriodo();
-  document.getElementById('periodo-info').textContent = p.iniStr+' → '+p.finStr+' ('+p.dias+' días)';
-  document.getElementById('periodo-badge').textContent = p.iniStr+' → '+p.finStr;
-  document.getElementById('fecha_mov').min = p.iniISO;
-  document.getElementById('fecha_mov').max = p.finISO;
-  document.getElementById('fecha_mov').value = '';
+  const p=getPeriodo(), [y,mo]=getMes().split('-').map(Number);
+  document.getElementById('periodo-info').innerHTML='<strong>'+p.iniStr+'</strong> → <strong>'+p.finStr+'</strong><br><span style="font-size:12px">'+p.dias+' días</span>';
+  document.getElementById('h-periodo').textContent=MONTHS[mo-1]+' '+y+' ('+p.dias+'d)';
+  const fd=document.getElementById('fecha_mov');
+  fd.min=p.iniISO; fd.max=p.finISO; fd.value='';
 }
 
 function showTab(t){
@@ -192,223 +252,244 @@ function showTab(t){
   if(t==='reporte') renderReporte();
 }
 
-function registrarMovimiento(){
-  const hab = document.getElementById('hab_sel').value;
-  const tipo = document.getElementById('tipo_mov').value;
-  const fecha = document.getElementById('fecha_mov').value;
-  const nota = document.getElementById('nota_mov').value.trim();
-  const msg = document.getElementById('reg_msg');
-
-  if(!fecha){ msg.innerHTML='<div class="warn-box">⚠️ Selecciona una fecha.</div>'; return; }
-
-  const p = getPeriodo();
-  const fDate = new Date(fecha+'T12:00:00');
-  if(fDate<p.ini||fDate>p.fin){ msg.innerHTML='<div class="warn-box">⚠️ La fecha debe estar dentro del período: '+p.iniStr+' → '+p.finStr+'</div>'; return; }
-
-  const store = getStore();
-  const key = getMes();
-  if(!store[key]) store[key]={};
-  if(!store[key][hab]) store[key][hab]=[];
-
-  // Check logical order: can't register same type twice in a row
-  const movs = store[key][hab];
+function registrarMov(){
+  const hab=document.getElementById('hab_sel').value;
+  const tipo=document.getElementById('tipo_mov').value;
+  const fecha=document.getElementById('fecha_mov').value;
+  const nota=document.getElementById('nota_mov').value.trim();
+  const msg=document.getElementById('reg_msg');
+  if(!fecha){msg.innerHTML='<div class="alert alert-warn">⚠️ Selecciona una fecha.</div>';return}
+  const p=getPeriodo(), fDate=new Date(fecha+'T12:00:00');
+  if(fDate<p.ini||fDate>p.fin){msg.innerHTML='<div class="alert alert-warn">⚠️ La fecha debe estar entre '+p.iniStr+' y '+p.finStr+'</div>';return}
+  const store=getStore(), key=getMes();
+  if(!store[key])store[key]={};
+  if(!store[key][hab])store[key][hab]=[];
+  const movs=store[key][hab];
   if(movs.length>0){
-    const last = movs[movs.length-1];
-    if(last.tipo===tipo){ msg.innerHTML='<div class="warn-box">⚠️ El último movimiento de Hab '+hab+' ya fue una '+tipo+'. Registra el movimiento opuesto primero.</div>'; return; }
+    const last=[...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha)).pop();
+    if(last.tipo===tipo){msg.innerHTML='<div class="alert alert-warn">⚠️ El último movimiento ya fue una <strong>'+tipo+'</strong>. Registra el opuesto primero.</div>';return}
   }
-
-  movs.push({tipo, fecha, nota, id: Date.now()});
+  const id='m'+Date.now();
+  movs.push({tipo,fecha,nota,id});
   saveStore(store);
-
-  const tipoStr = tipo==='salida'?'Salida':'Regreso';
-  msg.innerHTML='<div class="alert-ok">✅ '+tipoStr+' registrada — Hab '+hab+' el '+fDate.toLocaleDateString('es-PE',{day:'numeric',month:'long'})+'</div>';
-  document.getElementById('hab_sel').value = hab;
-  document.getElementById('tipo_mov').value = tipo==='salida'?'regreso':'salida';
-  document.getElementById('fecha_mov').value = '';
-  document.getElementById('nota_mov').value = '';
-  setTimeout(()=>{ msg.innerHTML=''; },4000);
+  const fmtFecha=fDate.toLocaleDateString('es-PE',{day:'numeric',month:'long'});
+  msg.innerHTML='<div class="alert alert-ok">✅ '+(tipo==='salida'?'Salida':'Regreso')+' registrada — Hab '+hab+' el '+fmtFecha+'</div>';
+  document.getElementById('tipo_mov').value=tipo==='salida'?'regreso':'salida';
+  document.getElementById('fecha_mov').value='';
+  document.getElementById('nota_mov').value='';
+  setTimeout(()=>{msg.innerHTML=''},4000);
 }
 
-function calcDiasHab(movs, periodo){
-  if(!movs||movs.length===0) return { ausente:0, presente:periodo.dias, completo:true, pendiente:false, periodos:[] };
-
-  // Sort by date
-  const sorted = [...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  let ausente = 0;
-  const periodos = [];
-  let pendiente = false;
-
+function calcHab(movs,p){
+  if(!movs||movs.length===0) return {ausente:0,presente:p.dias,completo:true,pendiente:false,sinMovs:true,periodos:[]};
+  const sorted=[...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  let ausente=0,pendiente=false;
+  const periodos=[];
   for(let i=0;i<sorted.length;i++){
-    const m = sorted[i];
+    const m=sorted[i];
     if(m.tipo==='salida'){
-      const next = sorted[i+1];
-      if(next&&next.tipo==='regreso'){
-        // Complete pair: days between salida and regreso (exclusive both)
-        const dS = new Date(m.fecha+'T12:00:00');
-        const dR = new Date(next.fecha+'T12:00:00');
-        const dias = Math.max(0, Math.round((dR-dS)/86400000)-1);
-        ausente += dias;
-        periodos.push({sal:m.fecha, reg:next.fecha, dias,
+      const nx=sorted[i+1];
+      if(nx&&nx.tipo==='regreso'){
+        const dS=new Date(m.fecha+'T12:00:00'), dR=new Date(nx.fecha+'T12:00:00');
+        const dias=Math.max(0,Math.round((dR-dS)/86400000)-1);
+        ausente+=dias;
+        periodos.push({sal:m.fecha,reg:nx.fecha,dias,
           salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),
           regStr:dR.toLocaleDateString('es-PE',{day:'numeric',month:'short'})});
-        i++; // skip regreso
+        i++;
       } else {
-        // No regreso yet — pending
-        pendiente = true;
-        const dS = new Date(m.fecha+'T12:00:00');
-        periodos.push({sal:m.fecha, reg:null, dias:null,
-          salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}), regStr:'pendiente'});
+        pendiente=true;
+        const dS=new Date(m.fecha+'T12:00:00');
+        periodos.push({sal:m.fecha,reg:null,dias:null,
+          salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),regStr:'⏳ pendiente'});
       }
     }
   }
-
-  const presente = pendiente ? null : periodo.dias - ausente;
-  return { ausente, presente, completo:!pendiente, pendiente, periodos };
+  return {ausente,presente:pendiente?null:p.dias-ausente,completo:!pendiente,pendiente,sinMovs:false,periodos};
 }
 
 function renderSeguimiento(){
-  const store = getStore();
-  const key = getMes();
-  const data = store[key]||{};
-  const p = getPeriodo();
-  let html='';
+  const store=getStore(), key=getMes(), data=store[key]||{};
+  const p=getPeriodo(), [y,mo]=getMes().split('-').map(Number);
+  const mesNombre=MONTHS[mo-1]+' '+y;
+  const results=ALL_HABS.map(h=>({h,r:calcHab(data[h],p)}));
+  const pendientes=results.filter(x=>x.r.pendiente).length;
+  const conMovs=results.filter(x=>!x.r.sinMovs).length;
 
-  html+=`<div class="card"><div class="card-title">📋 Estado del período — ${p.iniStr} → ${p.finStr}</div>`;
-  html+=`<div class="g4" style="margin-bottom:1rem">`;
-  const conMovs = ALL_HABS.filter(h=>data[h]&&data[h].length>0).length;
-  const pendientes = ALL_HABS.filter(h=>{
-    const r=calcDiasHab(data[h],p); return r.pendiente;
-  }).length;
-  html+=`<div class="mc"><div class="mc-l">Días del período</div><div class="mc-v">${p.dias}</div></div>`;
-  html+=`<div class="mc"><div class="mc-l">Habitaciones</div><div class="mc-v">${ALL_HABS.length}</div></div>`;
-  html+=`<div class="mc" style="background:var(--warn-l)"><div class="mc-l" style="color:var(--warn)">Con movimientos</div><div class="mc-v" style="color:var(--warn)">${conMovs}</div></div>`;
-  html+=`<div class="mc" style="background:var(--err-l)"><div class="mc-l" style="color:var(--err)">Pendientes</div><div class="mc-v" style="color:var(--err)">${pendientes}</div></div>`;
-  html+='</div></div>';
+  let html=`<div class="card">
+    <div class="card-title"><div class="ct-icon ct-gray">📋</div> Estado del período — ${mesNombre}</div>
+    <div class="g4" style="margin-bottom:0">
+      <div class="mc"><div class="mc-l">Días del período</div><div class="mc-v">${p.dias}</div><div class="mc-s">${p.iniStr} → ${p.finStr}</div></div>
+      <div class="mc"><div class="mc-l">Sin movimientos</div><div class="mc-v">${ALL_HABS.length-conMovs}</div><div class="mc-s">mes completo automático</div></div>
+      <div class="mc warn"><div class="mc-l">Con movimientos</div><div class="mc-v">${conMovs}</div></div>
+      <div class="mc ${pendientes>0?'err':'ok'}"><div class="mc-l">Regresosl pendientes</div><div class="mc-v">${pendientes}</div></div>
+    </div>
+  </div>`;
+
+  if(pendientes>0){
+    html+=`<div class="alert alert-warn no-print">⚠️ Hay ${pendientes} habitación(es) con salida sin regreso registrado. El reporte final no puede calcularse hasta que se registre el regreso.</div>`;
+  }
 
   [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,habs])=>{
-    html+=`<div class="card"><div class="card-title">🏢 Piso ${piso}</div>`;
+    html+=`<div class="piso-section">
+      <div class="piso-label">🏢 Piso ${piso}</div>
+      <div class="hab-grid">`;
     habs.forEach(hab=>{
-      const movs = data[hab]||[];
-      const r = calcDiasHab(movs,p);
-      const statusBadge = r.pendiente
-        ? '<span class="badge b-warn">⏳ Regreso pendiente</span>'
-        : movs.length===0
-          ? '<span class="badge b-ok">✅ Todo el mes</span>'
-          : '<span class="badge b-ok">✅ Completo</span>';
+      const movs=(data[hab]||[]).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      const r=calcHab(movs,p);
+      const cls=r.pendiente?'pendiente':movs.length>0?'has-movs':'completo-sin-movs';
+      const badge=r.pendiente
+        ?'<span class="badge b-warn">⏳ Regreso pendiente</span>'
+        :r.sinMovs
+          ?'<span class="badge b-neutral">✓ Mes completo</span>'
+          :'<span class="badge b-ok">✅ Completo</span>';
 
-      html+=`<div class="hab-card">
-        <div class="hab-card-header">
+      html+=`<div class="hab-card ${cls}">
+        <div class="hab-header">
           <div>
-            <span class="hab-tag">Hab ${hab}</span>
-            ${statusBadge}
+            <div class="hab-num">Hab ${hab}</div>
+            <div style="margin-top:4px">${badge}</div>
           </div>
-          <div style="display:flex;gap:6px" class="no-print">
-            <button class="btn btn-sm" onclick="addMovDesde(${hab},'salida')">+ Salida</button>
-            <button class="btn btn-sm" onclick="addMovDesde(${hab},'regreso')">+ Regreso</button>
-            ${movs.length>0?'<button class="btn btn-sm btn-del" onclick="borrarHab('+hab+')">🗑</button>':''}
+          <div class="hab-actions no-print">
+            <button class="btn btn-sm btn-salida" onclick="irARegistrar(${hab},'salida')" title="Registrar salida">🚪</button>
+            <button class="btn btn-sm btn-regreso" onclick="irARegistrar(${hab},'regreso')" title="Registrar regreso">🏠</button>
           </div>
         </div>`;
 
-      if(movs.length>0){
-        html+=`<div class="mov-list">`;
-        [...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha)).forEach(m=>{
-          const fStr=new Date(m.fecha+'T12:00:00').toLocaleDateString('es-PE',{day:'numeric',month:'short'});
-          const ico=m.tipo==='salida'?'🚪':'🏠';
-          const tipStr=m.tipo==='salida'?'Salida':'Regreso';
+      if(movs.length===0){
+        html+=`<div class="empty-hab">Sin movimientos — se contabilizarán ${p.dias} días presentes</div>`;
+      } else {
+        movs.forEach(m=>{
+          const fd=new Date(m.fecha+'T12:00:00');
+          const fdStr=fd.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'});
           html+=`<div class="mov-item">
-            <span>${ico} <strong>${tipStr}</strong> — ${fStr}${m.nota?' <em style="color:var(--hint)">'+m.nota+'</em>':''}</span>
-            <button class="btn btn-sm btn-del no-print" onclick="borrarMov(${hab},'${m.id}')" style="padding:2px 6px;font-size:11px">✕</button>
+            <div class="mov-ico ${m.tipo}">${m.tipo==='salida'?'🚪':'🏠'}</div>
+            <div class="mov-info">
+              <div class="mov-tipo">${m.tipo==='salida'?'Salida':'Regreso'}</div>
+              <div class="mov-fecha">${fdStr}${m.nota?'<span class="mov-nota"> — '+m.nota+'</span>':''}</div>
+            </div>
+            <div class="mov-btns no-print">
+              <button class="btn btn-sm btn-edit" onclick="abrirEditar('${hab}','${m.id}')" title="Editar">✏️</button>
+              <button class="btn btn-sm btn-del" onclick="eliminarMov('${hab}','${m.id}')" title="Eliminar">🗑</button>
+            </div>
           </div>`;
         });
-        html+='</div>';
         if(!r.pendiente&&r.ausente>0){
-          html+=`<div style="font-size:12px;color:var(--ok);font-weight:600">→ ${r.presente} días presente / ${r.ausente} días ausente</div>`;
-        } else if(r.pendiente){
-          html+=`<div style="font-size:12px;color:var(--warn);font-weight:600">⏳ Falta registrar el regreso para calcular los días</div>`;
+          html+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ok)">→ ${r.presente} días presente · ${r.ausente} días ausente</div>`;
         }
-      } else {
-        html+=`<div style="font-size:12px;color:var(--hint)">Sin movimientos — se asumirá ${p.dias} días presente al calcular</div>`;
       }
       html+='</div>';
     });
-    html+='</div>';
+    html+='</div></div>';
   });
 
-  document.getElementById('seguimiento_content').innerHTML=html;
+  document.getElementById('seg_content').innerHTML=html;
 }
 
-function addMovDesde(hab,tipo){
+function irARegistrar(hab,tipo){
   document.getElementById('hab_sel').value=hab;
   document.getElementById('tipo_mov').value=tipo;
   showTab('registrar');
-  document.getElementById('fecha_mov').focus();
+  setTimeout(()=>document.getElementById('fecha_mov').focus(),100);
 }
 
-function borrarMov(hab,id){
+function eliminarMov(hab,id){
   if(!confirm('¿Eliminar este movimiento?')) return;
   const store=getStore(), key=getMes();
   if(store[key]&&store[key][hab]){
-    store[key][hab]=store[key][hab].filter(m=>String(m.id)!==String(id));
-    saveStore(store);
-    renderSeguimiento();
+    store[key][hab]=store[key][hab].filter(m=>m.id!==id);
+    saveStore(store); renderSeguimiento();
   }
 }
 
-function borrarHab(hab){
-  if(!confirm('¿Borrar todos los movimientos de Hab '+hab+'?')) return;
+function abrirEditar(hab,id){
   const store=getStore(), key=getMes();
-  if(store[key]) delete store[key][hab];
+  const movs=store[key]?.[hab]||[];
+  const m=movs.find(x=>x.id===id);
+  if(!m) return;
+  const p=getPeriodo();
+  editState={hab,id};
+  document.getElementById('modal-title').textContent='Editar movimiento — Hab '+hab;
+  document.getElementById('edit-tipo').value=m.tipo;
+  document.getElementById('edit-fecha').value=m.fecha;
+  document.getElementById('edit-fecha').min=p.iniISO;
+  document.getElementById('edit-fecha').max=p.finISO;
+  document.getElementById('edit-nota').value=m.nota||'';
+  document.getElementById('modal-msg').innerHTML='';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function guardarEdicion(){
+  if(!editState) return;
+  const tipo=document.getElementById('edit-tipo').value;
+  const fecha=document.getElementById('edit-fecha').value;
+  const nota=document.getElementById('edit-nota').value.trim();
+  const msg=document.getElementById('modal-msg');
+  if(!fecha){msg.innerHTML='<div class="alert alert-warn">Selecciona una fecha.</div>';return}
+  const store=getStore(), key=getMes();
+  const movs=store[key]?.[editState.hab]||[];
+  const idx=movs.findIndex(x=>x.id===editState.id);
+  if(idx<0) return;
+  movs[idx]={...movs[idx],tipo,fecha,nota};
   saveStore(store);
+  closeModal();
   renderSeguimiento();
 }
 
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+  editState=null;
+}
+
 function renderReporte(){
-  const store=getStore(), key=getMes();
-  const data=store[key]||{};
-  const p=getPeriodo();
-  const [y,mo]=getMes().split('-').map(Number);
+  const store=getStore(), key=getMes(), data=store[key]||{};
+  const p=getPeriodo(), [y,mo]=getMes().split('-').map(Number);
   const mesNombre=MONTHS[mo-1]+' '+y;
-
-  const results=ALL_HABS.map(hab=>({hab, r:calcDiasHab(data[hab],p)}));
+  const results=ALL_HABS.map(h=>({h,r:calcHab(data[h],p)}));
   const pendientes=results.filter(x=>x.r.pendiente);
-  const completos=results.filter(x=>!x.r.pendiente);
+  const totalPresente=results.filter(x=>!x.r.pendiente).reduce((s,x)=>s+(x.r.presente||0),0);
+  const totalAusente=results.reduce((s,x)=>s+x.r.ausente,0);
 
-  let html=`<div class="card"><div class="card-title">📊 Reporte final — ${mesNombre}</div>`;
-  html+=`<div style="font-size:13px;color:var(--muted);margin-bottom:1rem">${p.iniStr} → ${p.finStr} · ${p.dias} días</div>`;
+  let html=`<div class="card">
+    <div class="card-title"><div class="ct-icon ct-green">📊</div> Reporte final — ${mesNombre}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">${p.iniStr} → ${p.finStr} · ${p.dias} días</div>`;
 
   if(pendientes.length>0){
-    html+=`<div class="warn-box" style="margin-bottom:1rem">⚠️ ${pendientes.length} habitación(es) con regreso pendiente: ${pendientes.map(x=>'Hab '+x.hab).join(', ')}. Sus días no se pueden calcular aún — ingresa el regreso en "Seguimiento del mes".</div>`;
+    html+=`<div class="alert alert-warn">⚠️ <strong>${pendientes.length} habitación(es) con regreso pendiente:</strong> ${pendientes.map(x=>'Hab '+x.h).join(', ')}. Ve a <strong>Seguimiento</strong> para registrar el regreso, o esos días no se calcularán correctamente.</div>`;
+  } else {
+    html+=`<div class="alert alert-ok">✅ Todas las habitaciones están completas. El reporte está listo para usar en el sistema principal.</div>`;
   }
 
-  const totalPresente=completos.reduce((s,x)=>s+(x.r.presente||0),0);
-  const totalAusente=completos.reduce((s,x)=>s+x.r.ausente,0);
-
-  html+=`<div class="g4" style="margin-bottom:1rem">
-    <div class="mc"><div class="mc-l">Habitaciones OK</div><div class="mc-v">${completos.length}</div></div>
-    <div class="mc" style="background:var(--err-l)"><div class="mc-l" style="color:var(--err)">Pendientes</div><div class="mc-v" style="color:var(--err)">${pendientes.length}</div></div>
-    <div class="mc" style="background:var(--ok-l)"><div class="mc-l" style="color:var(--ok)">Total días presentes</div><div class="mc-v" style="color:var(--ok)">${totalPresente}</div></div>
+  html+=`<div class="g4" style="margin-bottom:1.25rem">
+    <div class="mc"><div class="mc-l">Habitaciones</div><div class="mc-v">${ALL_HABS.length}</div></div>
+    <div class="mc ${pendientes.length>0?'err':'ok'}"><div class="mc-l">Pendientes</div><div class="mc-v">${pendientes.length}</div></div>
+    <div class="mc ok"><div class="mc-l">Total días presentes</div><div class="mc-v">${totalPresente}</div></div>
     <div class="mc"><div class="mc-l">Total días ausentes</div><div class="mc-v">${totalAusente}</div></div>
-  </div>`;
-
-  html+=`<div class="rt-wrap"><table class="rt"><thead><tr>
-    <th>Hab.</th><th>Días presente</th><th>Días ausente</th><th>Estado</th><th>Períodos de ausencia</th>
+  </div>
+  <div style="overflow-x:auto;border-radius:var(--rs);border:1px solid var(--border)">
+  <table class="rt"><thead><tr>
+    <th>Habitación</th><th>Días presente</th><th>Días ausente</th><th>Estado</th><th>Detalle de ausencias</th>
   </tr></thead><tbody>`;
 
   [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,habs])=>{
-    html+=`<tr class="piso-hdr"><td colspan="5" style="padding:8px 10px">Piso ${piso}</td></tr>`;
-    results.filter(x=>habs.includes(x.hab)).forEach(({hab,r})=>{
-      const presStr=r.pendiente?'<span class="badge b-warn">Pendiente</span>':'<strong style="font-size:16px">'+r.presente+'</strong> <span style="font-size:12px;color:var(--muted)">de '+p.dias+'</span>';
-      const ausStr=r.ausente>0?'<strong style="color:var(--err)">'+r.ausente+'</strong>':'<span style="color:var(--hint)">0</span>';
-      const badge=r.pendiente
+    html+=`<tr class="piso-hdr"><td colspan="5">🏢 Piso ${piso}</td></tr>`;
+    results.filter(x=>habs.includes(x.h)).forEach(({h,r})=>{
+      const presHtml=r.pendiente
         ?'<span class="badge b-warn">⏳ Pendiente</span>'
-        :r.ausente>0?'<span class="badge b-err">'+r.ausente+' días fuera</span>'
-        :'<span class="badge b-ok">Todo el mes</span>';
+        :`<strong style="font-size:17px">${r.presente}</strong> <span style="font-size:12px;color:var(--muted)">de ${p.dias}</span>`;
+      const ausHtml=r.ausente>0?`<strong style="color:var(--err)">${r.ausente}</strong>`:'<span style="color:var(--hint)">—</span>';
+      const badge=r.pendiente?'<span class="badge b-warn">⏳ Pendiente</span>'
+        :r.sinMovs?'<span class="badge b-neutral">Mes completo</span>'
+        :r.ausente>0?`<span class="badge b-err">${r.ausente}d fuera</span>`
+        :'<span class="badge b-ok">Sin ausencias</span>';
       const det=r.periodos.length>0
-        ?r.periodos.map(pr=>'Sale '+pr.salStr+' → Regresa '+(pr.regStr)+(pr.dias!==null?' ('+pr.dias+'d)':'')).join('<br>')
-        :'<span style="color:var(--hint)">Sin ausencias</span>';
+        ?r.periodos.map(pr=>`Sale ${pr.salStr} → Regresa ${pr.regStr}${pr.dias!==null?' ('+pr.dias+'d)':''}`).join('<br>')
+        :'<span style="color:var(--hint)">Presente todo el período</span>';
       html+=`<tr>
-        <td><strong>Hab ${hab}</strong></td>
-        <td>${presStr}</td><td>${ausStr}</td><td>${badge}</td>
+        <td><strong>Hab ${h}</strong></td>
+        <td>${presHtml}</td>
+        <td>${ausHtml}</td>
+        <td>${badge}</td>
         <td style="font-size:12px;color:var(--muted)">${det}</td>
       </tr>`;
     });
@@ -416,27 +497,25 @@ function renderReporte(){
 
   html+=`</tbody></table></div>
   <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px" class="no-print">
-    <div style="font-size:12px;color:var(--muted)">Usa los días presentes al registrar el mes en el sistema principal.</div>
+    <div style="font-size:12px;color:var(--muted)">Copia los días presentes e ingrésalos en el sistema principal de gastos.</div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-sm" onclick="copiarDias()">📋 Copiar días presentes</button>
       <button class="btn btn-sm btn-ok" onclick="window.print()">🖨 Imprimir / PDF</button>
     </div>
   </div></div>`;
 
-  document.getElementById('reporte_content').innerHTML=html;
-
-  window._reporteResults=results.map(x=>({hab:x.hab, presente:x.r.presente, pendiente:x.r.pendiente}));
+  document.getElementById('rep_content').innerHTML=html;
+  window._repResults=results.map(x=>({h:x.h,presente:x.r.presente,pendiente:x.r.pendiente}));
 }
 
 function copiarDias(){
-  if(!window._reporteResults) return;
-  const lines=window._reporteResults.map(x=>'Hab '+x.hab+': '+(x.pendiente?'PENDIENTE':x.presente+' días')).join('\n');
+  if(!window._repResults) return;
+  const lines=window._repResults.map(x=>'Hab '+x.h+': '+(x.pendiente?'PENDIENTE':x.presente+' días')).join('\n');
   if(navigator.clipboard){
-    navigator.clipboard.writeText(lines).then(()=>alert('✅ Copiado:\n\n'+lines)).catch(()=>prompt('Copia estos datos:',lines));
+    navigator.clipboard.writeText(lines).then(()=>alert('✅ Copiado al portapapeles:\n\n'+lines)).catch(()=>prompt('Copia estos datos:',lines));
   } else { prompt('Copia estos datos:',lines); }
 }
 
-// Init
 onMesChange();
 </script>
 </body>
