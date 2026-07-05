@@ -1032,7 +1032,7 @@ initForm();
           authority:'https://login.microsoftonline.com/consumers',
           redirectUri:'https://walsedy.github.io/gastos-casa/'
         },
-        cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:false}
+        cache:{cacheLocation:'localStorage',storeAuthStateInCookie:true}
       });
       await odApp.initialize();
       var rr=await odApp.handleRedirectPromise().catch(function(e){console.warn('redirect promise',e);return null;});
