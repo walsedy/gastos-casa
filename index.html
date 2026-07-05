@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gastos de Casa — Luz y Agua</title>
+<!-- v2.1 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
@@ -231,9 +232,10 @@ function getSavedPrev(){ try{ return JSON.parse(localStorage.getItem(PREV_KEY)||
 function showTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>{ el.classList.toggle('active',['datos','historial','reportes','dashboard'][i]===t); });
   document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
-  document.getElementById('pane-'+t).classList.add('active');
+  var pane = document.getElementById('pane-'+t);
+  if(pane) pane.classList.add('active');
   if(t==='historial') renderHistorial();
-  if(t==='reportes') renderReportes();
+  if(t==='reportes'){ var c=document.getElementById('reportes_container'); if(c&&c.innerHTML.trim()==='') renderReportes(); else renderReportes(); }
   if(t==='dashboard') renderDashboard();
 }
 
