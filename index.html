@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gastos de Casa — Luz y Agua</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script>
+// Fallback si unpkg falla
+if(typeof msal === 'undefined'){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"><\/script>');
+}
+</script>
 <style>
 :root{--bg:#f5f4f0;--surface:#fff;--border:rgba(0,0,0,.10);--bs:rgba(0,0,0,.18);--text:#1a1a1a;--muted:#6b6b6b;--hint:#9a9a9a;--acc:#2563eb;--acc-l:#eff6ff;--acc-d:#1d4ed8;--teal:#0f766e;--teal-l:#f0fdfa;--amb:#b45309;--amb-l:#fffbeb;--cor:#c2410c;--cor-l:#fff7ed;--ok:#15803d;--ok-l:#f0fdf4;--err:#b91c1c;--err-l:#fef2f2;--r:10px;--rs:6px;--sh:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06)}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -85,16 +92,14 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
   <span id="od-badge" onclick="odShowLogin()" style="margin-left:auto;font-size:11px;padding:3px 12px;border-radius:20px;font-weight:600;background:#f5f4f0;color:#6b6b6b;cursor:pointer;border:1px solid rgba(0,0,0,.1)">☁️ Conectar OneDrive</span>
 </header>
 
+<!-- OD LOGIN MODAL -->
 <div id="od-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:1rem">
   <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="font-size:34px;margin-bottom:.75rem">☁️</div>
     <h2 style="font-size:17px;font-weight:700;margin-bottom:8px">Conectar con OneDrive</h2>
-    <p style="color:#6b6b6b;font-size:13px;margin-bottom:1.5rem">Los datos se guardarán en <strong>GastosCasa.xlsx</strong> en tu OneDrive. Nunca más perderás los datos al cambiar de PC.</p>
-    <button id="od-btn-login" style="width:100%;padding:11px;background:#0078d4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">
-      <svg width="16" height="16" viewBox="0 0 21 21" fill="none" style="vertical-align:middle;margin-right:6px"><rect width="10" height="10" fill="#F25022"/><rect x="11" width="10" height="10" fill="#7FBA00"/><rect y="11" width="10" height="10" fill="#00A4EF"/><rect x="11" y="11" width="10" height="10" fill="#FFB900"/></svg>
-      Iniciar sesión con Microsoft
-    </button>
-    <button onclick="document.getElementById('od-modal').style.display='none'" style="width:100%;padding:9px;background:#f5f4f0;color:#1a1a1a;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">Usar sin OneDrive</button>
+    <p style="color:#6b6b6b;font-size:13px;margin-bottom:1.5rem">Los datos se guardarán en <strong>GastosCasa.xlsx</strong> en tu OneDrive.</p>
+    <button id="od-btn-login" style="width:100%;padding:11px;background:#0078d4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Iniciar sesión con Microsoft</button>
+    <button onclick="document.getElementById('od-modal').style.display='none'" style="margin-top:8px;width:100%;padding:9px;background:#f5f4f0;color:#1a1a1a;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">Usar sin OneDrive</button>
   </div>
 </div>
 
@@ -124,8 +129,8 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
   <div class="card">
     <div class="card-title"><div class="icon i-amb">⚡</div> Recibo de luz — medidor principal</div>
     <div class="g3">
-      <div><label>Consumo del recibo (kWh)</label><input type="number" id="mp_kwh" placeholder="0" min="0" oninput="calcTarifa()"></div>
-      <div><label>Monto del recibo (S/.)</label><input type="number" id="mp_soles" placeholder="0.00" step="0.01" min="0" oninput="calcTarifa()"></div>
+      <div><label>Consumo del recibo (kWh)</label><input type="number" id="mp_kwh" placeholder="0" min="0"></div>
+      <div><label>Monto del recibo (S/.)</label><input type="number" id="mp_soles" placeholder="0.00" step="0.01" min="0"></div>
       <div><label>Tarifa calculada (S/./kWh)</label><input type="number" id="tarifa" placeholder="—" step="0.0001" readonly class="ro"></div>
     </div>
     <div id="tarifa_info" style="font-size:12px;color:var(--teal);margin-top:8px;font-weight:500"></div>
@@ -186,7 +191,11 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
 <div id="pane-historial" class="pane">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
     <div style="font-size:13px;color:var(--muted)" id="hist_count"></div>
-    <div style="display:flex;gap:8px"><button id="od-sync-btn" class="btn btn-sm" style="display:none" onclick="odSync()">🔄 Sincronizar</button><button class="btn btn-sm" onclick="exportarCSV()">⬇ Exportar CSV</button></div>
+    <div style="display:flex;gap:8px">
+      <button id="od-sync-btn" class="btn btn-sm" style="display:none" onclick="odSync()">🔄 Sincronizar</button>
+      <button class="btn btn-sm" onclick="exportarCSV()">⬇ Exportar CSV</button>
+      <button class="btn btn-sm" onclick="resetearTodo()" style="background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5;font-weight:700">⚠️ Resetear todo</button>
+    </div>
   </div>
   <div id="historial_container"></div>
 </div>
@@ -295,35 +304,66 @@ function calcular(){
   const diasTotal=Math.round((fb-fa)/86400000);
   if(diasTotal<=0){ alert('Fechas inválidas.'); return; }
   const consumo_mp=v('mp_kwh');
-  const mp_soles_val=v('mp_soles');
+  const mp_soles=v('mp_soles');
   if(consumo_mp<=0){ alert('Ingresa el consumo del recibo principal (kWh).'); return; }
-  if(mp_soles_val<=0){ alert('Ingresa el monto del recibo (S/.).'); return; }
-  const tarifa=mp_soles_val/consumo_mp;
-  const tEl=document.getElementById('tarifa'); if(tEl) tEl.value=tarifa.toFixed(4);
-  const tiEl=document.getElementById('tarifa_info'); if(tiEl) tiEl.textContent='Tarifa: S/. '+tarifa.toFixed(4)+'/kWh';
+  if(mp_soles<=0){ alert('Ingresa el monto del recibo (S/.).'); return; }
+
+  // Tarifa
+  const tarifa = mp_soles / consumo_mp;
+  const telEl = document.getElementById('tarifa');
+  if(telEl) telEl.value = tarifa.toFixed(4);
+  const tiEl = document.getElementById('tarifa_info');
+  if(tiEl) tiEl.textContent = 'Tarifa: S/. '+tarifa.toFixed(4)+'/kWh';
+
+  // Consumos por piso
   const consumo_m3=Math.max(0,v('m3_act')-v('m3_ant'));
   const consumo_m4=Math.max(0,v('m4_act')-v('m4_ant'));
   const consumo_com=Math.max(0,consumo_mp-consumo_m3-consumo_m4);
-  const costo_p3=consumo_m3*tarifa, costo_p4=consumo_m4*tarifa, costo_com=consumo_com*tarifa;
-  const agua=v('agua_total'), agua_prop=agua*.5, agua_inq=agua*.5;
 
-  let totD3=0,totD4=0;
+  // Costos por piso
+  const costo_p3=consumo_m3*tarifa;
+  const costo_p4=consumo_m4*tarifa;
+  const costo_com=consumo_com*tarifa;
+
+  // Agua
+  const agua=v('agua_total'), agua_prop=agua*0.5, agua_inq=agua*0.5;
+
+  // Días ocupados por piso
+  let totD3=0, totD4=0;
   HABS_P3.forEach(c=>{ totD3+=v('dh'+c); });
   HABS_P4.forEach(c=>{ totD4+=v('dh'+c); });
   const totD=totD3+totD4;
-  const cpdCom=totD>0?costo_com/totD:0, cpdAgua=totD>0?agua_inq/totD:0;
 
+  // Costo por día piso (luz)
+  const cpd_p3 = totD3>0 ? costo_p3/totD3 : 0;
+  const cpd_p4 = totD4>0 ? costo_p4/totD4 : 0;
+
+  // Agua por día (50% inquilinos ÷ total días todos los pisos)
+  const cpdAgua = totD>0 ? agua_inq/totD : 0;
+
+  // Calcular por habitación
   const habitaciones=[];
-  [[3,HABS_P3,totD3,costo_p3],[4,HABS_P4,totD4,costo_p4]].forEach(([p,habs,totDP,costP])=>{
+  [[3,HABS_P3,cpd_p3],[4,HABS_P4,cpd_p4]].forEach(([p,habs,cpdLuz])=>{
     habs.forEach(code=>{
       const d=v('dh'+code);
-      const luz_piso=totDP>0?(d/totDP)*costP:0;
-      const luz_com=cpdCom*d, agua_h=cpdAgua*d;
-      habitaciones.push({piso:p,hab:code,dias:d,luz_piso,luz_com,agua:agua_h,total:luz_piso+luz_com+agua_h});
+      const luz_piso = cpdLuz*d;
+      const agua_h   = cpdAgua*d;
+      habitaciones.push({piso:p,hab:code,dias:d,luz_piso,luz_com:0,agua:agua_h,total:luz_piso+agua_h});
     });
   });
+
   const total_inq=habitaciones.reduce((s,h)=>s+h.total,0);
-  const casa_luz=costo_com, casa_agua=agua_prop, casa_total=casa_luz+casa_agua;
+  // Costo común (áreas comunes) va al propietario
+  const casa_luz=costo_com, casa_agua=agua_prop;
+  const casa_total=casa_luz+casa_agua;
+
+  // Construir diccionarios planos para Excel
+  const dias_hab={}, costo_luz_hab={}, costo_agua_hab={};
+  habitaciones.forEach(function(h){
+    dias_hab[h.hab]=h.dias;
+    costo_luz_hab[h.hab]=h.luz_piso;
+    costo_agua_hab[h.hab]=h.agua;
+  });
 
   mesActual={
     periodo:fa.toLocaleDateString('es-PE',{month:'long',year:'numeric'}),
@@ -331,8 +371,15 @@ function calcular(){
     fecha_ant:document.getElementById('fecha_ant').value,
     fecha_act:document.getElementById('fecha_act').value,
     diasTotal,consumo_mp,consumo_m3,consumo_m4,consumo_com,
-    mp_soles:v('mp_soles'),costo_p3,costo_p4,costo_com,tarifa,
-    agua,agua_prop,agua_inq,habitaciones,total_inq,casa_luz,casa_agua
+    mp_kwh:v('mp_kwh'), mp_soles:v('mp_soles'),
+    m3_ant:v('m3_ant'), m3_act:v('m3_act'),
+    m4_ant:v('m4_ant'), m4_act:v('m4_act'),
+    consumo_p3:consumo_m3, consumo_p4:consumo_m4,
+    costo_p3,costo_p4,costo_com,tarifa,
+    agua_total:agua, agua_prop, agua_inq_total:agua_inq,
+    agua, agua_prop, agua_inq,
+    habitaciones, total_inq, casa_luz, casa_agua,
+    dias_hab, costo_luz_hab, costo_agua_hab
   };
 
   // Render resultado
@@ -692,30 +739,75 @@ function applyDash(regs){
   }
 }
 
+// ===================== RESET =====================
+function resetearTodo(){
+  if(!confirm('⚠️ ADVERTENCIA\n\nEsta acción borrará TODOS los datos locales de la aplicación.\n\nEsto no se puede deshacer.\n\n¿Estás seguro?')) return;
+  if(!confirm('🔴 CONFIRMACIÓN FINAL\n\n¿Realmente deseas eliminar todos los registros?\n\nSi tienes datos en OneDrive, estos NO se borrarán allá.')) return;
+  try{ localStorage.clear(); }catch(e){}
+  try{ sessionStorage.clear(); }catch(e){}
+  alert('✅ Datos locales eliminados. La app se reiniciará.');
+  location.reload();
+}
+
 // ===================== START =====================
 document.getElementById('fecha_act').addEventListener('change',updateDias);
-// Tarifa en tiempo real
-['mp_kwh','mp_soles'].forEach(function(id){var el=document.getElementById(id);if(el){el.addEventListener('input',calcTarifa);el.addEventListener('change',calcTarifa);}});
+
+// Tarifa en tiempo real — usando addEventListener que funciona en todos los entornos
+['mp_kwh','mp_soles'].forEach(function(id){
+  var el = document.getElementById(id);
+  if(el){
+    el.addEventListener('input', calcTarifa);
+    el.addEventListener('change', calcTarifa);
+    el.addEventListener('keyup', calcTarifa);
+  }
+});
+
 initForm();
 
-// ══════════════════════════════════════════
-// ONEDRIVE SYNC — walsedy.github.io/gastos-casa
-// Client ID: c9c4478d-f8c5-4253-b1ed-c20fedaa5e9b
-// ══════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// ONEDRIVE SYNC  (appended — does not modify app)
+// ═══════════════════════════════════════════════
 (function(){
-  var OD_CLIENT_ID = 'c9c4478d-f8c5-4253-b1ed-c20fedaa5e9b';
-  var SCOPES = ['Files.ReadWrite','User.Read'];
-  var REDIRECT = 'https://walsedy.github.io/gastos-casa/';
-  var odApp=null, odFileId=null, odOn=false;
+  var OD_ID  = '5b12ba1d-12b4-46fa-96d9-b22e9bcad746';
+  var SCOPES = ['Files.ReadWrite.All','User.Read'];
+  var odApp=null, odFileId=null, odConnected=false;
 
   function badge(txt,bg,col){
     var el=document.getElementById('od-badge');
     if(el){el.textContent=txt;el.style.background=bg;el.style.color=col;}
   }
 
-  window.odShowLogin=function(){
+  window.odShowLogin = function(){
     document.getElementById('od-modal').style.display='flex';
   };
+
+  window.odSync = async function(){
+    if(!odConnected||!odFileId) return;
+    badge('⏳ Sincronizando...','#eff6ff','#1d4ed8');
+    try{
+      var d=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/usedRange?$select=values');
+      var rows=(d.values||[]).slice(1);
+      var regs=[];
+      rows.forEach(function(r){if(r[0])try{regs.push(JSON.parse(r[1]));}catch(e){}});
+      if(regs.length>0){regs.sort(function(a,b){return a.fecha_act.localeCompare(b.fecha_act);});saveRegistros(regs);}
+      try{
+        var pd=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'B1\')?$select=values');
+        var val=((pd.values||[['']])[0]||[''])[0];
+        if(val) _storageSet(PREV_KEY,val);
+      }catch(e){}
+      initForm();
+      badge('☁️ '+regs.length+' mes'+(regs.length!==1?'es':''),'#f0fdf4','#15803d');
+    }catch(e){badge('☁️ Sin datos aún','#fffbeb','#b45309');}
+  };
+
+  async function odGraph(path,opts){
+    opts=opts||{};
+    var tok=await getToken(); if(!tok) throw new Error('sin token');
+    var res=await fetch('https://graph.microsoft.com/v1.0'+path,Object.assign({},opts,{headers:Object.assign({'Authorization':'Bearer '+tok,'Content-Type':'application/json'},opts.headers||{})}));
+    if(!res.ok) throw new Error(res.status);
+    var ct=res.headers.get('content-type')||'';
+    return ct.includes('json')?res.json():res;
+  }
 
   async function getToken(){
     var acc=odApp.getActiveAccount()||(odApp.getAllAccounts()||[])[0];
@@ -724,177 +816,162 @@ initForm();
     catch(e){try{var r=await odApp.acquireTokenPopup({scopes:SCOPES});return r.accessToken;}catch(e2){return null;}}
   }
 
-  async function graph(path,opts){
-    opts=opts||{};
-    var tok=await getToken(); if(!tok) throw new Error('sin token');
-    var res=await fetch('https://graph.microsoft.com/v1.0'+path,Object.assign({},opts,{
-      headers:Object.assign({'Authorization':'Bearer '+tok,'Content-Type':'application/json'},opts.headers||{})
-    }));
-    if(!res.ok) throw new Error(res.status);
-    var ct=res.headers.get('content-type')||'';
-    return ct.includes('json')?res.json():res;
+  function colLetter(n){
+    var s='';
+    while(n>0){ var r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); }
+    return s;
+  }
+
+  var HEADERS_DATOS = [
+    'Período','Fecha Ant','Fecha Act',
+    'kWh Recibo','S/. Recibo','Tarifa S/./kWh',
+    'P3 Ant kWh','P3 Act kWh','P3 Consumo kWh','P3 S/. Luz',
+    'P4 Ant kWh','P4 Act kWh','P4 Consumo kWh','P4 S/. Luz',
+    'Agua Total S/.','Agua Propietario S/.','Agua Inquilinos S/.',
+    'HAB301 Días','HAB301 S/.','HAB302 Días','HAB302 S/.',
+    'HAB304 Días','HAB304 S/.','HAB305 Días','HAB305 S/.','HAB306 Días','HAB306 S/.',
+    'HAB401 Días','HAB401 S/.','HAB402 Días','HAB402 S/.',
+    'HAB403 Días','HAB403 S/.','HAB404 Días','HAB404 S/.',
+    'HAB405 Días','HAB405 S/.','HAB406 Días','HAB406 S/.',
+    'Total Inquilinos S/.','Casa Luz S/.','Casa Agua S/.','Guardado'
+  ];
+
+  var ALL_HABS_ORDER=['301','302','304','305','306','401','402','403','404','405','406'];
+
+  function regToRow(r){
+    var dh=r.dias_hab||{};
+    var cl=r.costo_luz_hab||{};
+    var ca=r.costo_agua_hab||{};
+    // fallback: leer desde habitaciones array si existen los diccionarios vacios
+    if(r.habitaciones&&r.habitaciones.length>0&&Object.keys(dh).length===0){
+      r.habitaciones.forEach(function(h){
+        dh[h.hab]=h.dias;
+        cl[h.hab]=h.luz_piso||0;
+        ca[h.hab]=h.agua||0;
+      });
+    }
+    var habCols=[];
+    ALL_HABS_ORDER.forEach(function(code){
+      var total=(cl[code]||0)+(ca[code]||0);
+      habCols.push(dh[code]||0, parseFloat(total.toFixed(2)));
+    });
+    return [
+      r.periodo_label||r.periodo||'',
+      r.fecha_ant||'', r.fecha_act||'',
+      r.mp_kwh||r.consumo_mp||0, r.mp_soles||0, parseFloat((r.tarifa||0).toFixed(4)),
+      r.m3_ant||0, r.m3_act||0, r.consumo_p3||r.consumo_m3||0, parseFloat((r.costo_p3||0).toFixed(2)),
+      r.m4_ant||0, r.m4_act||0, r.consumo_p4||r.consumo_m4||0, parseFloat((r.costo_p4||0).toFixed(2)),
+      r.agua_total||r.agua||0, parseFloat((r.agua_prop||0).toFixed(2)), parseFloat((r.agua_inq_total||r.agua_inq||0).toFixed(2))
+    ].concat(habCols).concat([
+      parseFloat((r.total_inq||0).toFixed(2)),
+      parseFloat((r.casa_luz||0).toFixed(2)),
+      parseFloat((r.casa_agua||0).toFixed(2)),
+      new Date().toLocaleString('es-PE')
+    ]);
+  }
+
+  async function ensureSheets(){
+    try{
+      var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name,id');
+      var names=(sheets.value||[]).map(function(s){return s.name;});
+      // Renombrar Sheet1 → Datos si existe
+      if(names.indexOf('Datos')===-1 && names.indexOf('Sheet1')!==-1){
+        var sid=sheets.value.find(function(s){return s.name==='Sheet1';}).id;
+        try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/'+encodeURIComponent(sid),{method:'PATCH',body:JSON.stringify({name:'Datos'})}); }catch(e){}
+      } else if(names.indexOf('Datos')===-1){
+        try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Datos'})}); }catch(e){}
+      }
+      if(names.indexOf('Config')===-1){
+        try{ await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Config'})}); }catch(e){}
+      }
+    }catch(e){console.warn('ensureSheets',e);}
   }
 
   async function ensureFile(){
     try{
-      var r=await graph('/me/drive/root/children?$filter=name eq \'GastosCasa.xlsx\'&$select=id,name');
-      if(r.value&&r.value.length>0){odFileId=r.value[0].id;return;}
-      badge('⏳ Creando Excel...','#eff6ff','#1d4ed8');
+      // Buscar archivo existente
+      var r=await odGraph('/me/drive/root:/GastosCasa:/children?$filter=name eq \'GastosCasa.xlsx\'&$select=id,name').catch(function(){return {value:[]};});
+      if(r.value&&r.value.length>0){
+        odFileId=r.value[0].id;
+        await ensureSheets();
+        return;
+      }
+      badge('⏳ Creando carpeta...','#eff6ff','#1d4ed8');
       var tok=await getToken();
-      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa.xlsx:/content',{
+      // Crear carpeta GastosCasa (ignorar si ya existe)
+      try{
+        await odGraph('/me/drive/root/children',{method:'POST',body:JSON.stringify({name:'GastosCasa',folder:{},'@microsoft.graph.conflictBehavior':'ignore'})});
+      }catch(e){ console.warn('folder may exist',e); }
+      await new Promise(function(res){setTimeout(res,2000);});
+      badge('⏳ Creando Excel...','#eff6ff','#1d4ed8');
+      // Crear xlsx válido con ExcelJS con columnas correctas
+      var wb = new ExcelJS.Workbook();
+      var wsDatos = wb.addWorksheet('Datos');
+      wsDatos.addRow(HEADERS_DATOS);
+      wb.addWorksheet('Config').addRow(['prev_data','']);
+      var buf = await wb.xlsx.writeBuffer();
+      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa.xlsx:/content',{
         method:'PUT',
         headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
-        body:new Uint8Array(0)
+        body:buf
       });
-      odFileId=(await cr.json()).id;
+      var crData=await cr.json();
+      odFileId=crData.id;
+      // Esperar a que OneDrive procese el archivo
+      await new Promise(function(res){setTimeout(res,3000);});
+      await ensureSheets();
     }catch(e){console.warn('ensureFile',e);}
   }
 
-  // Parse Excel row in column format:
-  // A=Período B=FechaAnt C=FechaAct D=kWh E=S/. F=Tarifa
-  // G=P3Ant H=P3Act I=P3Consumo J=P3Luz K=P4Ant L=P4Act M=P4Consumo N=P4Luz
-  // O=AguaTotal P=AguaProp Q=AguaInq
-  // R=301dias S=301s/ T=302dias U=302s/ V=304dias W=304s/
-  // X=305dias Y=305s/ Z=306dias AA=306s/
-  // AB=401dias AC=401s/ AD=402dias AE=402s/ AF=403dias AG=403s/
-  // AH=404dias AI=404s/ AJ=405dias AK=405s/ AL=406dias AM=406s/
-  // AN=TotalInq AO=CasaLuz AP=CasaAgua
-  function parseExcelRow(r){
-    if(!r||!r[0]) return null;
-    var n=function(v){return parseFloat(v)||0;};
-    var fmtDate=function(d){
-      if(!d) return '';
-      if(typeof d==='string'){
-        if(d.includes('/')){var p=d.split('/');return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}
-        return d.substring(0,10);
-      }
-      // Excel serial date number
-      if(typeof d==='number'){var t=new Date((d-25569)*86400000);return t.toISOString().split('T')[0];}
-      return String(d);
-    };
-    var periodo_label=String(r[0]).trim();
-    var fecha_ant=fmtDate(r[1]), fecha_act=fmtDate(r[2]);
-    var consumo_mp=n(r[3]), mp_soles=n(r[4]), tarifa=n(r[5]);
-    var consumo_m3=n(r[8]), costo_p3=n(r[9]);
-    var consumo_m4=n(r[12]), costo_p4=n(r[13]);
-    var agua=n(r[14]), agua_prop=n(r[15]), agua_inq=n(r[16]);
-    var consumo_com=Math.max(0,consumo_mp-consumo_m3-consumo_m4);
-    var costo_com=consumo_com*tarifa;
-    var habDefs=[[301,3,17],[302,3,19],[304,3,21],[305,3,23],[306,3,25],[401,4,27],[402,4,29],[403,4,31],[404,4,33],[405,4,35],[406,4,37]];
-    var habitaciones=habDefs.map(function(hd){
-      return {piso:hd[1],hab:hd[0],dias:n(r[hd[2]]),luz_piso:0,luz_com:0,agua:0,total:n(r[hd[2]+1])};
-    });
-    var total_inq=n(r[39])||habitaciones.reduce(function(s,h){return s+h.total;},0);
-    var casa_luz=n(r[40])||costo_com;
-    var casa_agua=n(r[41])||agua_prop;
-    var months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    var ya=fecha_act.split('-');
-    var periodo=ya.length>1?(months[parseInt(ya[1])-1]+' de '+ya[0]):periodo_label;
-    return {
-      periodo:periodo, periodo_label:periodo_label,
-      fecha_ant:fecha_ant, fecha_act:fecha_act, diasTotal:30,
-      consumo_mp:consumo_mp, mp_soles:mp_soles, tarifa:tarifa,
-      consumo_m3:consumo_m3, consumo_m4:consumo_m4, consumo_com:consumo_com,
-      costo_p3:costo_p3, costo_p4:costo_p4, costo_com:costo_com,
-      agua:agua, agua_prop:agua_prop, agua_inq:agua_inq,
-      casa_luz:casa_luz, casa_agua:casa_agua, total_inq:total_inq,
-      habitaciones:habitaciones
-    };
-  }
-
-  window.odSync=async function(){
-    if(!odOn||!odFileId)return;
-    badge('⏳ Sincronizando...','#eff6ff','#1d4ed8');
-    try{
-      var d=await graph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/usedRange?$select=values');
-      var rows=(d.values||[]).slice(1);
-      var regs=[];
-      rows.forEach(function(r){
-        if(!r[0]) return;
-        // Try JSON format first (new saves)
-        try{var obj=JSON.parse(r[1]);if(obj&&obj.fecha_act){regs.push(obj);return;}}catch(e){}
-        // Fall back to column format (existing Excel data)
-        var parsed=parseExcelRow(r);
-        if(parsed&&parsed.fecha_act) regs.push(parsed);
-      });
-      if(regs.length>0){
-        regs.sort(function(a,b){return a.fecha_act.localeCompare(b.fecha_act);});
-        saveRegistros(regs);
-      }
-      try{
-        var pd=await graph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'B1\')?$select=values');
-        var val=((pd.values||[['']])[0]||[''])[0];
-        if(val) localStorage.setItem(PREV_KEY,val);
-      }catch(e){}
-      if(!localStorage.getItem(PREV_KEY)&&regs.length>0){
-        localStorage.setItem(PREV_KEY,JSON.stringify({fecha_act:'2026-05-15',m3_act:10769.2,m4_act:13451.8}));
-      }
-      initForm();
-      var n=regs.length;
-      badge('☁️ '+n+' mes'+(n!==1?'es':''),'#f0fdf4','#15803d');
-    }catch(e){
-      console.warn('odSync:',e);
-      badge('⚠️ Error al sincronizar','#fffbeb','#b45309');
-    }
-  };
-
-  async function saveCloud(registros){
-    if(!odOn||!odFileId)return;
-    badge('⏳ Guardando...','#eff6ff','#1d4ed8');
-    try{
-      var vals=[['Período','JSON','Total','Guardado']];
-      registros.forEach(function(r){
-        vals.push([r.periodo_label||r.periodo,JSON.stringify(r),(r.total_inq||0).toFixed(2),new Date().toISOString()]);
-      });
-      var pad=vals.concat(Array(Math.max(0,500-vals.length)).fill(['','','','']));
-      await graph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A1:D500\')',{
-        method:'PATCH',body:JSON.stringify({values:pad})
-      });
-      // Resumen legible
-      var sum=[['Período','Días','kWh','P3','P4','Comunes','Agua','A.Prop','A.Inq','Total','Casa']];
-      registros.forEach(function(r){
-        sum.push([r.periodo_label||r.periodo,r.diasTotal,r.consumo_mp,r.consumo_m3,r.consumo_m4,r.consumo_com,r.agua,r.agua_prop,r.agua_inq,r.total_inq,(r.casa_luz||0)+(r.casa_agua||0)]);
-      });
-      var hd=[[''],['Período','Piso','Hab','Días','Luz','Agua','Total']];
-      registros.forEach(function(r){
-        (r.habitaciones||[]).forEach(function(h){
-          hd.push([r.periodo_label||r.periodo,h.piso,h.hab,h.dias,((h.luz_piso||0)+(h.luz_com||0)).toFixed(2),(h.agua||0).toFixed(2),(h.total||0).toFixed(2)]);
-        });
-      });
-      var all=sum.concat(hd).concat(Array(Math.max(0,600-sum.length-hd.length)).fill(Array(11).fill('')));
-      await graph('/me/drive/items/'+odFileId+'/workbook/worksheets/Resumen/range(address=\'A1:K600\')',{
-        method:'PATCH',body:JSON.stringify({values:all})
-      });
-      var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
-      badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
-    }catch(e){
-      badge('⚠️ Error al guardar','#fffbeb','#b45309');
-      console.warn('saveCloud',e);
-    }
-  }
-
-  async function savePrev(prev){
-    if(!odOn||!odFileId)return;
-    try{
-      await graph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'A1:B1\')',{
-        method:'PATCH',body:JSON.stringify({values:[['prev_data',JSON.stringify(prev)]]})
-      });
-    }catch(e){}
-  }
-
   async function afterLogin(acc){
-    odOn=true;
+    odConnected=true;
+    badge('⏳ Conectando...','#eff6ff','#1d4ed8');
     document.getElementById('od-sync-btn').style.display='inline-block';
     document.getElementById('btn_guardar').textContent='💾 Guardar en OneDrive';
-    badge('⏳ Conectando...','#eff6ff','#1d4ed8');
     await ensureFile();
     await window.odSync();
   }
 
+  async function saveToCloud(registros){
+    if(!odConnected||!odFileId) return;
+    badge('⏳ Guardando...','#eff6ff','#1d4ed8');
+    try{
+      await ensureSheets();
+      var vals=[HEADERS_DATOS];
+      registros.forEach(function(r){
+        var row=regToRow(r).map(function(v){
+          if(v===null||v===undefined) return '';
+          if(typeof v==='number' && !isFinite(v)) return 0;
+          return v;
+        });
+        vals.push(row);
+      });
+      var cols=colLetter(HEADERS_DATOS.length);
+      var total=vals.length;
+      // Escribir en bloques de 10 filas para evitar errores 500
+      for(var i=0;i<total;i+=10){
+        var chunk=vals.slice(i,Math.min(i+10,total));
+        var startRow=i+1;
+        var endRow=startRow+chunk.length-1;
+        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Datos/range(address=\'A'+startRow+':'+cols+endRow+'\')',{method:'PATCH',body:JSON.stringify({values:chunk})});
+      }
+      var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+      badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
+    }catch(e){
+      console.warn('saveToCloud error',e);
+      badge('⚠️ Error al guardar','#fffbeb','#b45309');
+    }
+  }
+
+  async function savePrev(prev){
+    if(!odConnected||!odFileId) return;
+    try{await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'A1:B1\')',{method:'PATCH',body:JSON.stringify({values:[['prev_data',JSON.stringify(prev)]]})});}catch(e){}
+  }
+
   // Patch guardarMes
-  var _orig=window.guardarMes;
-  window.guardarMes=async function(){
-    if(!mesActual)return;
+  var _orig = window.guardarMes;
+  window.guardarMes = async function(){
+    if(!mesActual) return;
     var registros=getRegistros();
     var idx=registros.findIndex(function(r){return r.fecha_act===mesActual.fecha_act;});
     if(idx>=0){if(!confirm('Ya existe un registro para este período. ¿Sobreescribir?'))return;registros[idx]=mesActual;}
@@ -903,48 +980,52 @@ initForm();
     saveRegistros(registros);
     var prev={fecha_act:mesActual.fecha_act,m3_act:v('m3_act'),m4_act:v('m4_act')};
     localStorage.setItem(PREV_KEY,JSON.stringify(prev));
-    if(odOn){saveCloud(registros);savePrev(prev);}
+    if(odConnected){saveToCloud(registros);savePrev(prev);}
     mesActual=null;
     document.getElementById('btn_guardar').style.display='none';
-    document.getElementById('resultado_mes').innerHTML='<div class="alert al-ok">✅ Mes guardado'+(odOn?' en OneDrive':'')+'. El formulario se actualizará en 2 segundos.</div>';
+    document.getElementById('resultado_mes').innerHTML='<div class="alert al-ok">✅ Mes guardado'+(odConnected?' — sincronizando con OneDrive...':'')+'. El formulario se actualizará en 2 segundos.</div>';
     setTimeout(function(){
       document.getElementById('resultado_mes').innerHTML='';
       ['mp_kwh','mp_soles','m3_act','m4_act','agua_total'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
-      document.getElementById('tarifa').value='';
-      document.getElementById('tarifa_info').textContent='';
+      document.getElementById('tarifa').value='';document.getElementById('tarifa_info').textContent='';
       ALL_HABS.forEach(function(code){var e=document.getElementById('dh'+code);if(e)e.value='';});
       initForm();
     },2000);
   };
 
   // Boot
-  window.addEventListener('load',async function(){
+  window.addEventListener('load', async function(){
     try{
       odApp=new msal.PublicClientApplication({
-        auth:{clientId:OD_CLIENT_ID,authority:'https://login.microsoftonline.com/consumers',redirectUri:REDIRECT},
-        cache:{cacheLocation:'localStorage',storeAuthStateInCookie:true}
+        auth:{
+          clientId:OD_ID,
+          authority:'https://login.microsoftonline.com/consumers',
+          redirectUri:'https://walsedy.github.io/gastos-casa/'
+        },
+        cache:{cacheLocation:'sessionStorage',storeAuthStateInCookie:false}
       });
       await odApp.initialize();
-      // Handle redirect response
-      var rr=await odApp.handleRedirectPromise().catch(function(){return null;});
-      if(rr&&rr.account){odApp.setActiveAccount(rr.account);await afterLogin(rr.account);return;}
-      // Check cached session
+      var rr=await odApp.handleRedirectPromise().catch(function(e){console.warn('redirect promise',e);return null;});
+      if(rr&&rr.account){
+        odApp.setActiveAccount(rr.account);
+        await afterLogin(rr.account);
+        return;
+      }
       var accs=odApp.getAllAccounts();
-      if(accs.length>0){odApp.setActiveAccount(accs[0]);await afterLogin(accs[0]);return;}
-      // Show connect option
+      if(accs&&accs.length>0){
+        odApp.setActiveAccount(accs[0]);
+        await afterLogin(accs[0]);
+        return;
+      }
       badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
-      // Wire login button
       document.getElementById('od-btn-login').addEventListener('click',async function(){
         document.getElementById('od-modal').style.display='none';
-        badge('⏳ Conectando...','#eff6ff','#1d4ed8');
+        badge('⏳ Redirigiendo...','#eff6ff','#1d4ed8');
         try{
-          var r=await odApp.loginPopup({scopes:SCOPES});
-          odApp.setActiveAccount(r.account);
-          await afterLogin(r.account);
+          await odApp.loginRedirect({scopes:SCOPES, prompt:'select_account'});
         }catch(e){
-          console.warn('popup failed, trying redirect:',e);
-          try{ await odApp.loginRedirect({scopes:SCOPES}); }
-          catch(e2){ badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b'); document.getElementById('od-modal').style.display='flex'; }
+          console.warn('login redirect error',e);
+          badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
         }
       });
     }catch(e){console.warn('OD boot',e);}
