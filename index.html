@@ -524,12 +524,66 @@ function renderHistorial(){
     const ri=regs.length-1-i;
     return '<div class="hist-item"><div><div style="font-weight:700;font-size:15px">'+(r.periodo_label||r.periodo)+'</div>'
       +'<div style="font-size:12px;color:var(--muted);margin-top:3px">'+r.diasTotal+' días · '+r.consumo_mp.toFixed(0)+' kWh · Agua S/. '+(r.agua||0).toFixed(2)+'</div></div>'
-      +'<div style="display:flex;align-items:center;gap:12px"><div style="font-size:18px;font-weight:700;color:var(--acc)">S/. '+(r.total_inq||0).toFixed(2)+'</div>'
-      +'<button class="btn btn-err btn-sm" onclick="eliminarRegistro('+ri+')">🗑</button></div></div>';
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div style="font-size:18px;font-weight:700;color:var(--acc)">S/. '+(r.total_inq||0).toFixed(2)+'</div>'
+      +'<button class="btn btn-sm" style="color:var(--acc-d);border-color:#93c5fd" onclick="editarRegistro(''+r.fecha_act+'')">✏️ Editar</button>'
+      +'<button class="btn btn-err btn-sm" onclick="eliminarRegistro('+ri+')">🗑</button>'
+      +'</div></div>';
   }).join('');
 }
 
 function eliminarRegistro(idx){ if(!confirm('¿Eliminar este registro?')) return; const r=getRegistros(); r.splice(idx,1); saveRegistros(r); renderHistorial(); }
+
+function editarRegistro(fecha_act){
+  const regs = getRegistros();
+  const r = regs.find(x=>x.fecha_act===fecha_act);
+  if(!r){ alert('No se encontró el registro.'); return; }
+
+  // Switch to datos tab
+  showTab('datos');
+
+  // Fill dates
+  setInput('fecha_ant', r.fecha_ant, false);
+  setInput('fecha_act', r.fecha_act, false);
+  updateDias();
+
+  // Fill light meter data
+  const el_kwh = document.getElementById('mp_kwh');
+  const el_soles = document.getElementById('mp_soles');
+  const el_m3ant = document.getElementById('m3_ant');
+  const el_m3act = document.getElementById('m3_act');
+  const el_m4ant = document.getElementById('m4_ant');
+  const el_m4act = document.getElementById('m4_act');
+  const el_agua = document.getElementById('agua_total');
+
+  if(el_kwh) el_kwh.value = r.consumo_mp||'';
+  if(el_soles) el_soles.value = r.mp_soles||'';
+  // Restore meter readings
+  if(el_m3ant) { el_m3ant.value = r.m3_ant||(r.consumo_m3?''); el_m3ant.readOnly=false; el_m3ant.className=''; }
+  if(el_m3act) el_m3act.value = r.m3_act||(r.consumo_m3?'');
+  if(el_m4ant) { el_m4ant.value = r.m4_ant||(r.consumo_m4?''); el_m4ant.readOnly=false; el_m4ant.className=''; }
+  if(el_m4act) el_m4act.value = r.m4_act||(r.consumo_m4?'');
+  if(el_agua) el_agua.value = r.agua||'';
+
+  // Fill hab days
+  (r.habitaciones||[]).forEach(h=>{
+    const el = document.getElementById('dh'+h.hab);
+    if(el) el.value = h.dias||0;
+  });
+
+  // Calculate tarifa
+  calcTarifa();
+
+  // Show notification
+  document.getElementById('resultado_mes').innerHTML =
+    '<div class="alert al-info" style="margin-bottom:1rem">'
+    +'✏️ <strong>Modo edición:</strong> Estás editando el período <strong>'+(r.periodo_label||r.periodo)+'</strong>. '
+    +'Modifica los datos que necesites y presiona <strong>"Calcular distribución"</strong> → <strong>"Guardar mes"</strong> para sobreescribir.'
+    +'</div>';
+
+  // Scroll to top
+  window.scrollTo({top:0, behavior:'smooth'});
+}
 
 function exportarCSV(){
   const regs=getRegistros(); if(!regs.length){ alert('Sin registros.'); return; }
