@@ -781,30 +781,60 @@ function renderReportes(){
     cont.innerHTML='<div class="empty-st"><div class="ei">📄</div><p>Aún no hay meses guardados.</p></div>';
     return;
   }
-
-  // Build month selector
   const opts = [...regs].reverse().map(r=>'<option value="'+r.fecha_act+'">'+(r.periodo_label||r.periodo)+'</option>').join('');
   cont.innerHTML =
     '<div class="card" style="margin-bottom:1rem">'
     +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<div style="font-size:14px;font-weight:600">📄 Reporte por habitación</div>'
+    +'<div style="font-size:14px;font-weight:600">📄 Reportes por habitación</div>'
     +'<select id="rep-mes-sel" onchange="renderReporteDetalle()" style="max-width:220px;padding:7px 10px;font-size:13px;border-radius:var(--rs);border:1px solid var(--bs);background:var(--bg);color:var(--text);font-family:inherit">'+opts+'</select>'
-    +'<button onclick="imprimirReporte()" class="btn btn-sm" style="margin-left:auto">🖨 Imprimir</button>'
-    +'</div></div>'
+    +'<div style="margin-left:auto;display:flex;gap:8px">'
+    +'<button onclick="imprimirUna()" class="btn btn-sm">🖨 Imprimir seleccionada</button>'
+    +'<button onclick="imprimirTodas()" class="btn btn-sm btn-ok">🖨 Imprimir todas</button>'
+    +'</div></div></div>'
     +'<div id="rep-detalle"></div>';
-
   renderReporteDetalle();
+}
+
+function getReporteHTML(h, r, periodo_label){
+  const luz = (h.luz_piso||0)+(h.luz_com||0);
+  const agua = h.agua||0;
+  const total = h.total||0;
+  const dias = h.dias||0;
+  return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.25rem;break-inside:avoid">'
+    +'<div style="font-size:16px;font-weight:700;color:#1e3a5f;margin-bottom:2px">Habitación '+h.hab+'</div>'
+    +'<div style="font-size:12px;color:#6b6b6b;margin-bottom:1rem">Período: '+periodo_label+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem">'
+    +'<div style="background:#f5f4f0;border-radius:6px;padding:10px">'
+    +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">Días ocupados</div>'
+    +'<div style="font-size:22px;font-weight:700">'+dias+'</div></div>'
+    +'<div style="background:#eff6ff;border-radius:6px;padding:10px">'
+    +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">Total a pagar</div>'
+    +'<div style="font-size:22px;font-weight:700;color:#1e3a5f">S/. '+total.toFixed(2)+'</div></div>'
+    +'<div style="background:#fffbeb;border-radius:6px;padding:10px">'
+    +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">⚡ Costo de luz</div>'
+    +'<div style="font-size:22px;font-weight:700;color:#b45309">S/. '+luz.toFixed(2)+'</div></div>'
+    +'<div style="background:#f0fdfa;border-radius:6px;padding:10px">'
+    +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">💧 Costo de agua</div>'
+    +'<div style="font-size:22px;font-weight:700;color:#0f766e">S/. '+agua.toFixed(2)+'</div></div>'
+    +'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<thead><tr><th style="text-align:left;color:#9a9a9a;font-weight:500;padding:5px 8px;border-bottom:1px solid #e5e5e5">Concepto</th>'
+    +'<th style="text-align:right;color:#9a9a9a;font-weight:500;padding:5px 8px;border-bottom:1px solid #e5e5e5">Monto (S/.)</th></tr></thead>'
+    +'<tbody>'
+    +'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">Costo de luz</td><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right">S/. '+luz.toFixed(2)+'</td></tr>'
+    +'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">Costo de agua</td><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5;text-align:right">S/. '+agua.toFixed(2)+'</td></tr>'
+    +'<tr style="background:#1e3a5f"><td style="padding:8px;color:#fff;font-weight:700">TOTAL</td><td style="padding:8px;color:#fff;font-weight:700;text-align:right">S/. '+total.toFixed(2)+'</td></tr>'
+    +'</tbody></table></div>';
 }
 
 function renderReporteDetalle(){
   const sel = document.getElementById('rep-mes-sel');
   if(!sel) return;
-  const fecha_act = sel.value;
   const regs = getRegistros();
-  const r = regs.find(x=>x.fecha_act===fecha_act);
+  const r = regs.find(x=>x.fecha_act===sel.value);
   if(!r){ document.getElementById('rep-detalle').innerHTML=''; return; }
-
   const habs = r.habitaciones||[];
+  const periodo_label = r.periodo_label||r.periodo;
   const casa_luz = r.casa_luz||r.costo_com||0;
   const casa_agua = r.casa_agua||r.agua_prop||0;
   const casa_total = casa_luz+casa_agua;
@@ -813,77 +843,65 @@ function renderReporteDetalle(){
 
   // KPIs
   let html = '<div class="g4" style="margin-bottom:1rem">'
-    +'<div class="mc"><div class="mc-l">Período</div><div class="mc-v" style="font-size:15px">'+(r.periodo_label||r.periodo)+'</div></div>'
+    +'<div class="mc"><div class="mc-l">Período</div><div class="mc-v" style="font-size:15px">'+periodo_label+'</div></div>'
     +'<div class="mc"><div class="mc-l">kWh consumidos</div><div class="mc-v">'+(r.consumo_mp||0).toFixed(0)+'</div><div class="mc-s">S/. '+(r.mp_soles||0).toFixed(2)+'</div></div>'
     +'<div class="mc"><div class="mc-l">Agua total</div><div class="mc-v">S/. '+(r.agua||0).toFixed(2)+'</div></div>'
     +'<div class="mc" style="background:var(--acc-l);border-color:#93c5fd"><div class="mc-l" style="color:var(--acc-d)">Total cobrado</div><div class="mc-v" style="color:var(--acc)">S/. '+total_inq.toFixed(2)+'</div></div>'
     +'</div>';
 
-  // Hab cards grid
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:1rem">';
-
   // Casa card
-  html += '<div class="card" style="border-left:4px solid #c2410c;padding:1rem">'
-    +'<div style="font-size:15px;font-weight:700;color:#c2410c;margin-bottom:8px">🏠 Casa (propietario)</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-    +'<div class="mc"><div class="mc-l">Luz sobrante</div><div class="mc-v" style="font-size:18px">S/. '+casa_luz.toFixed(2)+'</div></div>'
-    +'<div class="mc"><div class="mc-l">Agua (50%)</div><div class="mc-v" style="font-size:18px">S/. '+casa_agua.toFixed(2)+'</div></div>'
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:1rem">';
+  html += '<div style="background:#fff;border:1px solid #e5e7eb;border-left:4px solid #c2410c;border-radius:10px;padding:1.25rem">'
+    +'<div style="font-size:16px;font-weight:700;color:#c2410c;margin-bottom:2px">🏠 Casa (propietario)</div>'
+    +'<div style="font-size:12px;color:#6b6b6b;margin-bottom:1rem">Período: '+periodo_label+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem">'
+    +'<div style="background:#fff7ed;border-radius:6px;padding:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">⚡ Luz sobrante</div><div style="font-size:22px;font-weight:700;color:#c2410c">S/. '+casa_luz.toFixed(2)+'</div></div>'
+    +'<div style="background:#f0fdfa;border-radius:6px;padding:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">💧 Agua (50%)</div><div style="font-size:22px;font-weight:700;color:#0f766e">S/. '+casa_agua.toFixed(2)+'</div></div>'
     +'</div>'
-    +'<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-    +'<span style="font-size:13px;color:var(--muted)">Total propietario</span>'
-    +'<span style="font-size:18px;font-weight:700;color:#c2410c">S/. '+casa_total.toFixed(2)+'</span>'
-    +'</div></div>';
+    +'<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>'
+    +'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">Luz sobrante</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f5">S/. '+casa_luz.toFixed(2)+'</td></tr>'
+    +'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">Agua (50%)</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f5">S/. '+casa_agua.toFixed(2)+'</td></tr>'
+    +'<tr style="background:#1e3a5f"><td style="padding:8px;color:#fff;font-weight:700">TOTAL</td><td style="padding:8px;color:#fff;font-weight:700;text-align:right">S/. '+casa_total.toFixed(2)+'</td></tr>'
+    +'</tbody></table></div>';
 
-  // Habitaciones cards
+  // Hab cards
   [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,pisoHabs])=>{
-    pisoHabs.forEach(code=>{
-      const h = habs.find(x=>x.hab===code);
-      if(!h) return;
-      const luz = (h.luz_piso||0)+(h.luz_com||0);
-      const agua = h.agua||0;
-      const total = h.total||0;
-      const dias = h.dias||0;
-      const color = piso===3?'#2563eb':'#7c3aed';
-      const presente = dias>0;
-
-      html += '<div class="card" style="border-left:4px solid '+color+';padding:1rem">'
-        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
-        +'<div><div style="font-size:15px;font-weight:700;color:'+color+'">Hab '+code+'</div>'
-        +'<div style="font-size:12px;color:var(--muted)">Piso '+piso+'</div></div>'
-        +'<div style="text-align:right">'
-        +'<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em">Días presentes</div>'
-        +'<div style="font-size:20px;font-weight:700;color:'+color+'">'+dias+'</div>'
-        +'</div></div>'
-        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
-        +'<div class="mc"><div class="mc-l">⚡ Luz</div><div class="mc-v" style="font-size:17px">S/. '+luz.toFixed(2)+'</div></div>'
-        +'<div class="mc"><div class="mc-l">💧 Agua</div><div class="mc-v" style="font-size:17px">S/. '+agua.toFixed(2)+'</div></div>'
-        +'</div>'
-        +'<div style="padding-top:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">'
-        +'<span style="font-size:13px;color:var(--muted)">Total a pagar</span>'
-        +'<span style="font-size:20px;font-weight:700">S/. '+total.toFixed(2)+'</span>'
-        +'</div>'
-        +(dias===0?'<div style="margin-top:8px;font-size:11px;color:var(--hint)">Sin consumo este período</div>':'')
-        +'</div>';
-    });
-  });
-
-  html += '</div>';
-
-  // Summary table
-  html += '<div class="card"><div class="card-title" style="margin-bottom:.75rem">📋 Resumen completo del período</div>'
-    +'<div class="rt-wrap"><table class="rt"><thead><tr>'
-    +'<th>Habitación</th><th>Días presentes</th><th>⚡ Luz (S/.)</th><th>💧 Agua (S/.)</th><th>Total (S/.)</th>'
-    +'</tr></thead><tbody>'
-    +'<tr style="background:var(--cor-l,#fff7ed)"><td><strong>🏠 Casa</strong></td><td>—</td><td>'+casa_luz.toFixed(2)+'</td><td>'+casa_agua.toFixed(2)+'</td><td><strong>'+casa_total.toFixed(2)+'</strong></td></tr>';
-
-  [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,pisoHabs])=>{
-    html += '<tr style="background:var(--bg)"><td colspan="5" style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px">Piso '+piso+'</td></tr>';
     pisoHabs.forEach(code=>{
       const h = habs.find(x=>x.hab===code);
       if(!h) return;
       const luz=(h.luz_piso||0)+(h.luz_com||0);
-      html += '<tr><td><strong>Hab '+code+'</strong></td><td>'+h.dias+' días</td>'
-        +'<td>'+luz.toFixed(2)+'</td><td>'+(h.agua||0).toFixed(2)+'</td><td><strong>'+(h.total||0).toFixed(2)+'</strong></td></tr>';
+      const color = piso===3?'#2563eb':'#7c3aed';
+      html += '<div style="background:#fff;border:1px solid #e5e7eb;border-left:4px solid '+color+';border-radius:10px;padding:1.25rem">'
+        +'<div style="font-size:16px;font-weight:700;color:'+color+';margin-bottom:2px">Habitación '+code+'</div>'
+        +'<div style="font-size:12px;color:#6b6b6b;margin-bottom:1rem">Período: '+periodo_label+'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem">'
+        +'<div style="background:#f5f4f0;border-radius:6px;padding:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">Días ocupados</div><div style="font-size:22px;font-weight:700">'+h.dias+'</div></div>'
+        +'<div style="background:#eff6ff;border-radius:6px;padding:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">Total a pagar</div><div style="font-size:22px;font-weight:700;color:#1e3a5f">S/. '+h.total.toFixed(2)+'</div></div>'
+        +'<div style="background:#fffbeb;border-radius:6px;padding:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">⚡ Costo de luz</div><div style="font-size:22px;font-weight:700;color:#b45309">S/. '+luz.toFixed(2)+'</div></div>'
+        +'<div style="background:#f0fdfa;border-radius:6px;padding:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px">💧 Costo de agua</div><div style="font-size:22px;font-weight:700;color:#0f766e">S/. '+(h.agua||0).toFixed(2)+'</div></div>'
+        +'</div>'
+        +'<table style="width:100%;border-collapse:collapse;font-size:12px"><tbody>'
+        +'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">Costo de luz</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f5">S/. '+luz.toFixed(2)+'</td></tr>'
+        +'<tr><td style="padding:6px 8px;border-bottom:1px solid #f5f5f5">Costo de agua</td><td style="text-align:right;padding:6px 8px;border-bottom:1px solid #f5f5f5">S/. '+(h.agua||0).toFixed(2)+'</td></tr>'
+        +'<tr style="background:#1e3a5f"><td style="padding:8px;color:#fff;font-weight:700">TOTAL</td><td style="padding:8px;color:#fff;font-weight:700;text-align:right">S/. '+h.total.toFixed(2)+'</td></tr>'
+        +'</tbody></table></div>';
+    });
+  });
+  html += '</div>';
+
+  // Resumen tabla
+  html += '<div class="card"><div class="card-title" style="margin-bottom:.75rem">📋 Resumen completo</div>'
+    +'<div class="rt-wrap"><table class="rt"><thead><tr>'
+    +'<th>Habitación</th><th>Días</th><th>⚡ Luz (S/.)</th><th>💧 Agua (S/.)</th><th>Total (S/.)</th>'
+    +'</tr></thead><tbody>'
+    +'<tr style="background:#fff7ed"><td><strong>🏠 Casa</strong></td><td>—</td><td>'+casa_luz.toFixed(2)+'</td><td>'+casa_agua.toFixed(2)+'</td><td><strong>'+casa_total.toFixed(2)+'</strong></td></tr>';
+
+  [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,pisoHabs])=>{
+    html += '<tr style="background:var(--bg)"><td colspan="5" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);padding:8px 10px">Piso '+piso+'</td></tr>';
+    pisoHabs.forEach(code=>{
+      const h=habs.find(x=>x.hab===code); if(!h) return;
+      const luz=(h.luz_piso||0)+(h.luz_com||0);
+      html+='<tr><td><strong>Hab '+code+'</strong></td><td>'+h.dias+'d</td><td>'+luz.toFixed(2)+'</td><td>'+(h.agua||0).toFixed(2)+'</td><td><strong>'+h.total.toFixed(2)+'</strong></td></tr>';
     });
   });
 
@@ -894,27 +912,124 @@ function renderReporteDetalle(){
   document.getElementById('rep-detalle').innerHTML = html;
 }
 
-function imprimirReporte(){
-  const det = document.getElementById('rep-detalle');
+function imprimirUna(){
   const sel = document.getElementById('rep-mes-sel');
-  if(!det||!sel) return;
-  const titulo = sel.options[sel.selectedIndex]?.text||'Reporte';
+  if(!sel) return;
+  const regs = getRegistros();
+  const r = regs.find(x=>x.fecha_act===sel.value);
+  if(!r) return;
+  const periodo_label = r.periodo_label||r.periodo;
+  // Show hab selector modal
+  const habs = r.habitaciones||[];
+  const opts = '<option value="casa">🏠 Casa (propietario)</option>'
+    +[...HABS_P3,...HABS_P4].map(code=>'<option value="'+code+'">Hab '+code+'</option>').join('');
+  const existing = document.getElementById('hab-print-modal');
+  if(existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id='hab-print-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
+    +'<div style="font-size:16px;font-weight:600;margin-bottom:1rem">Selecciona una habitación</div>'
+    +'<select id="hab-print-sel" style="width:100%;padding:8px 10px;font-size:14px;border-radius:6px;border:1px solid #ccc;margin-bottom:1rem">'+opts+'</select>'
+    +'<div style="display:flex;gap:8px;justify-content:flex-end">'
+    +'<button onclick="document.getElementById('hab-print-modal').remove()" style="padding:8px 16px;border-radius:6px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer">Cancelar</button>'
+    +'<button onclick="ejecutarImpresionUna(''+r.fecha_act+'')" style="padding:8px 16px;border-radius:6px;border:none;background:#1e3a5f;color:#fff;cursor:pointer;font-weight:600">🖨 Imprimir</button>'
+    +'</div></div>';
+  document.body.appendChild(modal);
+}
+
+function ejecutarImpresionUna(fecha_act){
+  const sel = document.getElementById('hab-print-sel');
+  const habCode = sel ? sel.value : null;
+  const modal = document.getElementById('hab-print-modal');
+  if(modal) modal.remove();
+  const regs = getRegistros();
+  const r = regs.find(x=>x.fecha_act===fecha_act);
+  if(!r) return;
+  const periodo_label = r.periodo_label||r.periodo;
+  const habs = r.habitaciones||[];
+  let bodyHTML = '';
+  if(habCode==='casa'){
+    const cl=r.casa_luz||r.costo_com||0, ca=r.casa_agua||r.agua_prop||0;
+    bodyHTML = '<div style="border:1px solid #e5e7eb;border-left:4px solid #c2410c;border-radius:10px;padding:1.5rem">'
+      +'<div style="font-size:18px;font-weight:700;color:#c2410c">🏠 Casa (propietario)</div>'
+      +'<div style="color:#6b6b6b;margin-bottom:1rem">Período: '+periodo_label+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">'
+      +'<div style="background:#fff7ed;padding:12px;border-radius:6px"><div style="font-size:11px;color:#9a9a9a">⚡ Luz sobrante</div><div style="font-size:24px;font-weight:700;color:#c2410c">S/. '+cl.toFixed(2)+'</div></div>'
+      +'<div style="background:#f0fdfa;padding:12px;border-radius:6px"><div style="font-size:11px;color:#9a9a9a">💧 Agua (50%)</div><div style="font-size:24px;font-weight:700;color:#0f766e">S/. '+ca.toFixed(2)+'</div></div>'
+      +'</div>'
+      +'<div style="background:#1e3a5f;color:#fff;padding:12px;border-radius:6px;display:flex;justify-content:space-between">'
+      +'<span style="font-weight:700">TOTAL</span><span style="font-weight:700">S/. '+(cl+ca).toFixed(2)+'</span></div></div>';
+  } else {
+    const h = habs.find(x=>String(x.hab)===String(habCode));
+    if(!h) return;
+    const luz=(h.luz_piso||0)+(h.luz_com||0);
+    bodyHTML = '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:1.5rem">'
+      +'<div style="font-size:18px;font-weight:700;color:#1e3a5f">Habitación '+h.hab+'</div>'
+      +'<div style="color:#6b6b6b;margin-bottom:1rem">Período: '+periodo_label+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">'
+      +'<div style="background:#f5f4f0;padding:12px;border-radius:6px"><div style="font-size:11px;color:#9a9a9a">Días ocupados</div><div style="font-size:24px;font-weight:700">'+h.dias+'</div></div>'
+      +'<div style="background:#eff6ff;padding:12px;border-radius:6px"><div style="font-size:11px;color:#9a9a9a">Total a pagar</div><div style="font-size:24px;font-weight:700;color:#1e3a5f">S/. '+h.total.toFixed(2)+'</div></div>'
+      +'<div style="background:#fffbeb;padding:12px;border-radius:6px"><div style="font-size:11px;color:#9a9a9a">⚡ Costo de luz</div><div style="font-size:24px;font-weight:700;color:#b45309">S/. '+luz.toFixed(2)+'</div></div>'
+      +'<div style="background:#f0fdfa;padding:12px;border-radius:6px"><div style="font-size:11px;color:#9a9a9a">💧 Costo de agua</div><div style="font-size:24px;font-weight:700;color:#0f766e">S/. '+(h.agua||0).toFixed(2)+'</div></div>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse"><tbody>'
+      +'<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Costo de luz</td><td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0">S/. '+luz.toFixed(2)+'</td></tr>'
+      +'<tr><td style="padding:8px;border-bottom:1px solid #f0f0f0">Costo de agua</td><td style="text-align:right;padding:8px;border-bottom:1px solid #f0f0f0">S/. '+(h.agua||0).toFixed(2)+'</td></tr>'
+      +'<tr style="background:#1e3a5f"><td style="padding:10px;color:#fff;font-weight:700">TOTAL</td><td style="padding:10px;color:#fff;font-weight:700;text-align:right">S/. '+h.total.toFixed(2)+'</td></tr>'
+      +'</tbody></table></div>';
+  }
+  abrirVentanaImpresion(bodyHTML, 'Reporte '+habCode+' — '+periodo_label);
+}
+
+function imprimirTodas(){
+  const sel = document.getElementById('rep-mes-sel');
+  if(!sel) return;
+  const regs = getRegistros();
+  const r = regs.find(x=>x.fecha_act===sel.value);
+  if(!r) return;
+  const periodo_label = r.periodo_label||r.periodo;
+  const habs = r.habitaciones||[];
+  const casa_luz=r.casa_luz||r.costo_com||0, casa_agua=r.casa_agua||r.agua_prop||0;
+  let body = '<h1 style="font-size:18px;font-weight:700;margin-bottom:4px">Reportes de Gastos — '+periodo_label+'</h1>'
+    +'<p style="color:#6b6b6b;margin-bottom:1.5rem">Gastos de Casa · Generado '+new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long',year:'numeric'})+'</p>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
+  // Casa
+  body += '<div style="border:1px solid #e5e7eb;border-left:4px solid #c2410c;border-radius:8px;padding:1rem">'
+    +'<div style="font-size:15px;font-weight:700;color:#c2410c;margin-bottom:4px">🏠 Casa</div>'
+    +'<div style="font-size:11px;color:#6b6b6b;margin-bottom:.75rem">'+periodo_label+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.75rem">'
+    +'<div style="background:#fff7ed;padding:8px;border-radius:4px"><div style="font-size:10px;color:#9a9a9a">⚡ Luz</div><div style="font-size:18px;font-weight:700;color:#c2410c">S/.'+casa_luz.toFixed(2)+'</div></div>'
+    +'<div style="background:#f0fdfa;padding:8px;border-radius:4px"><div style="font-size:10px;color:#9a9a9a">💧 Agua</div><div style="font-size:18px;font-weight:700;color:#0f766e">S/.'+casa_agua.toFixed(2)+'</div></div>'
+    +'</div>'
+    +'<div style="background:#1e3a5f;color:#fff;padding:8px;border-radius:4px;display:flex;justify-content:space-between"><span style="font-weight:700;font-size:12px">TOTAL</span><span style="font-weight:700">S/. '+(casa_luz+casa_agua).toFixed(2)+'</span></div></div>';
+  // Habs
+  [...HABS_P3,...HABS_P4].forEach(code=>{
+    const h=habs.find(x=>x.hab===code); if(!h) return;
+    const luz=(h.luz_piso||0)+(h.luz_com||0);
+    body += '<div style="border:1px solid #e5e7eb;border-radius:8px;padding:1rem">'
+      +'<div style="font-size:15px;font-weight:700;color:#1e3a5f;margin-bottom:4px">Hab '+code+'</div>'
+      +'<div style="font-size:11px;color:#6b6b6b;margin-bottom:.75rem">'+periodo_label+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:.75rem">'
+      +'<div style="background:#f5f4f0;padding:8px;border-radius:4px"><div style="font-size:10px;color:#9a9a9a">Días</div><div style="font-size:18px;font-weight:700">'+h.dias+'</div></div>'
+      +'<div style="background:#eff6ff;padding:8px;border-radius:4px"><div style="font-size:10px;color:#9a9a9a">Total</div><div style="font-size:18px;font-weight:700;color:#1e3a5f">S/.'+h.total.toFixed(2)+'</div></div>'
+      +'<div style="background:#fffbeb;padding:8px;border-radius:4px"><div style="font-size:10px;color:#9a9a9a">⚡ Luz</div><div style="font-size:18px;font-weight:700;color:#b45309">S/.'+luz.toFixed(2)+'</div></div>'
+      +'<div style="background:#f0fdfa;padding:8px;border-radius:4px"><div style="font-size:10px;color:#9a9a9a">💧 Agua</div><div style="font-size:18px;font-weight:700;color:#0f766e">S/.'+(h.agua||0).toFixed(2)+'</div></div>'
+      +'</div>'
+      +'<div style="background:#1e3a5f;color:#fff;padding:8px;border-radius:4px;display:flex;justify-content:space-between"><span style="font-weight:700;font-size:12px">TOTAL</span><span style="font-weight:700">S/. '+h.total.toFixed(2)+'</span></div></div>';
+  });
+  body += '</div>';
+  abrirVentanaImpresion(body, 'Reportes '+periodo_label);
+}
+
+function abrirVentanaImpresion(bodyHTML, titulo){
   const w = window.open('','_blank');
   if(!w){alert('Permite ventanas emergentes para imprimir.');return;}
   w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>'+titulo+'</title>'
-    +'<style>body{font-family:Segoe UI,sans-serif;padding:2rem;font-size:13px;color:#1a1a1a}'
-    +'.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem}'
-    +'.mc{background:#f5f4f0;border-radius:6px;padding:10px 12px}'
-    +'.mc-l{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#9a9a9a;margin-bottom:3px}'
-    +'.mc-v{font-size:20px;font-weight:700}'
-    +'table{width:100%;border-collapse:collapse;margin-top:1rem}'
-    +'th{text-align:left;font-size:11px;text-transform:uppercase;color:#9a9a9a;padding:6px 10px;border-bottom:1px solid #e5e5e5}'
-    +'td{padding:7px 10px;border-bottom:1px solid #f0f0f0}'
-    +'h1{font-size:18px;font-weight:700;margin-bottom:4px}h2{font-size:13px;color:#6b6b6b;margin-bottom:1.5rem}'
-    +'</style></head><body>'
-    +'<h1>Reporte de Gastos — '+titulo+'</h1>'
-    +'<h2>Gastos de Casa · Generado '+new Date().toLocaleDateString('es-PE',{day:'numeric',month:'long',year:'numeric'})+'</h2>'
-    +det.innerHTML+'</body></html>');
+    +'<style>body{font-family:Segoe UI,sans-serif;padding:1.5rem;font-size:13px;color:#1a1a1a}@media print{button{display:none}}</style>'
+    +'</head><body>'+bodyHTML
+    +'<br><button onclick="window.print()" style="margin-top:1rem;padding:8px 20px;background:#1e3a5f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">🖨 Imprimir / Guardar PDF</button>'
+    +'</body></html>');
   w.document.close();
   setTimeout(()=>w.print(),400);
 }
