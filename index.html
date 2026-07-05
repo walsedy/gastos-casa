@@ -825,6 +825,16 @@ initForm();
       if(!localStorage.getItem(PREV_KEY)&&regs.length>0){
         localStorage.setItem(PREV_KEY,JSON.stringify({fecha_act:'2026-05-15',m3_act:10769.2,m4_act:13451.8}));
       }
+      // Si no hay datos en Excel, intentar restaurar desde backup JSON
+      if(regs.length===0){
+        var restored=await restoreFromBackup();
+        if(restored){
+          regs=getRegistros();
+          initForm();
+          badge('☁️ '+regs.length+' mes'+(regs.length!==1?'es':'')+' (backup)','#f0fdf4','#15803d');
+          return;
+        }
+      }
       initForm();
       badge('☁️ '+regs.length+' mes'+(regs.length!==1?'es':''),'#f0fdf4','#15803d');
     }catch(e){console.warn('odSync:',e);badge('⚠️ Error sync','#fffbeb','#b45309');}
@@ -998,6 +1008,38 @@ initForm();
     try{await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'A1:B1\')',{method:'PATCH',body:JSON.stringify({values:[['prev_data',JSON.stringify(prev)]]})});}catch(e){}
   }
 
+  async function saveBackupJson(registros){
+    if(!odConnected) return;
+    try{
+      var tok=await getToken(); if(!tok) return;
+      var mesStr=new Date().toISOString().substring(0,7);
+      var backup={version:'1.0',fecha_backup:new Date().toISOString(),total_meses:registros.length,registros:registros};
+      var json=JSON.stringify(backup);
+      var headers={'Authorization':'Bearer '+tok,'Content-Type':'application/json'};
+      // Always-current backup
+      await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa_backup.json:/content',{method:'PUT',headers:headers,body:json});
+      // Monthly snapshot
+      await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/backups/backup_'+mesStr+'.json:/content',{method:'PUT',headers:headers,body:json});
+      console.log('Backup JSON guardado: '+registros.length+' meses');
+    }catch(e){console.warn('saveBackupJson:',e);}
+  }
+
+  async function restoreFromBackup(){
+    try{
+      var tok=await getToken(); if(!tok) return false;
+      var r=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa_backup.json:/content',{headers:{'Authorization':'Bearer '+tok}});
+      if(!r.ok) return false;
+      var data=await r.json();
+      if(data.registros&&data.registros.length>0){
+        data.registros.sort(function(a,b){return a.fecha_act.localeCompare(b.fecha_act);});
+        saveRegistros(data.registros);
+        console.log('Restaurados '+data.registros.length+' meses desde backup JSON');
+        return data.registros.length;
+      }
+    }catch(e){console.warn('restoreFromBackup:',e);}
+    return false;
+  }
+
   // Patch guardarMes
   var _orig = window.guardarMes;
   window.guardarMes = async function(){
@@ -1010,7 +1052,7 @@ initForm();
     saveRegistros(registros);
     var prev={fecha_act:mesActual.fecha_act,m3_act:v('m3_act'),m4_act:v('m4_act')};
     localStorage.setItem(PREV_KEY,JSON.stringify(prev));
-    if(odConnected){saveToCloud(registros);savePrev(prev);}
+    if(odConnected){saveToCloud(registros);savePrev(prev);saveBackupJson(registros);}
     mesActual=null;
     document.getElementById('btn_guardar').style.display='none';
     document.getElementById('resultado_mes').innerHTML='<div class="alert al-ok">✅ Mes guardado'+(odConnected?' — sincronizando con OneDrive...':'')+'. El formulario se actualizará en 2 segundos.</div>';
