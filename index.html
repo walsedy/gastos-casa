@@ -820,10 +820,10 @@ initForm();
       try{
         var pd=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets/Config/range(address=\'B1\')?$select=values');
         var val=((pd.values||[['']])[0]||[''])[0];
-        if(val) _storageSet(PREV_KEY,val);
+        if(val) localStorage.setItem(PREV_KEY,val);
       }catch(e){}
       if(!localStorage.getItem(PREV_KEY)&&regs.length>0){
-        _storageSet(PREV_KEY,JSON.stringify({fecha_act:'2026-05-15',m3_act:10769.2,m4_act:13451.8}));
+        localStorage.setItem(PREV_KEY,JSON.stringify({fecha_act:'2026-05-15',m3_act:10769.2,m4_act:13451.8}));
       }
       initForm();
       badge('☁️ '+regs.length+' mes'+(regs.length!==1?'es':''),'#f0fdf4','#15803d');
