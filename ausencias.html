@@ -230,8 +230,9 @@ function getPeriodo(){
   const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
   const dias=Math.round((fin-ini)/86400000);
   const fmt=d=>d.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'});
-  return {ini,fin,dias,iniStr:fmt(ini),finStr:fmt(fin),
-    iniISO:ini.toISOString().split('T')[0],finISO:fin.toISOString().split('T')[0]};
+  const iniISO=ini.toISOString().split('T')[0];
+  const finISO=fin.toISOString().split('T')[0];
+  return {ini,fin,dias,iniStr:fmt(ini),finStr:fmt(fin),iniISO,finISO};
 }
 
 function onMesChange(){
@@ -290,6 +291,7 @@ function calcHab(movs,p){
     if(m.tipo==='salida'){
       const nx=sorted[i+1];
       if(nx&&nx.tipo==='regreso'){
+        // Normal: days between salida and regreso exclusive both ends
         const dS=new Date(m.fecha+'T12:00:00'), dR=new Date(nx.fecha+'T12:00:00');
         const dias=Math.max(0,Math.round((dR-dS)/86400000)-1);
         ausente+=dias;
@@ -298,14 +300,23 @@ function calcHab(movs,p){
           regStr:dR.toLocaleDateString('es-PE',{day:'numeric',month:'short'})});
         i++;
       } else {
-        pendiente=true;
+        // No regreso registered — count days from salida to end of period (fin del 15)
+        // Rule: absent = days between salida and fin (day 15 next month), exclusive of salida day
         const dS=new Date(m.fecha+'T12:00:00');
-        periodos.push({sal:m.fecha,reg:null,dias:null,
-          salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),regStr:'⏳ pendiente'});
+        const dFin=new Date(p.finISO+'T12:00:00');
+        const dias=Math.max(0,Math.round((dFin-dS)/86400000)-1);
+        ausente+=dias;
+        pendiente=true; // flag so next period knows they started absent
+        periodos.push({sal:m.fecha,reg:'fin_periodo',dias,
+          salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),
+          regStr:'día 15 (fin período)',
+          nota:'No regresó antes del día 15. El siguiente período inicia como ausente desde el día 15.'});
       }
     }
   }
-  return {ausente,presente:pendiente?null:p.dias-ausente,completo:!pendiente,pendiente,sinMovs:false,periodos};
+  // presente = dias del periodo - ausente
+  const presente=Math.max(0,p.dias-ausente);
+  return {ausente,presente,completo:true,pendiente,sinMovs:false,periodos};
 }
 
 function renderSeguimiento(){
@@ -339,7 +350,7 @@ function renderSeguimiento(){
       const r=calcHab(movs,p);
       const cls=r.pendiente?'pendiente':movs.length>0?'has-movs':'completo-sin-movs';
       const badge=r.pendiente
-        ?'<span class="badge b-warn">⏳ Regreso pendiente</span>'
+        ?'<span class="badge b-warn">⚠️ No regresó al 15</span>'
         :r.sinMovs
           ?'<span class="badge b-neutral">✓ Mes completo</span>'
           :'<span class="badge b-ok">✅ Completo</span>';
@@ -374,8 +385,11 @@ function renderSeguimiento(){
             </div>
           </div>`;
         });
-        if(!r.pendiente&&r.ausente>0){
-          html+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ok)">→ ${r.presente} días presente · ${r.ausente} días ausente</div>`;
+        if(r.ausente>0){
+          const nota = r.pendiente
+            ? `→ ${r.presente} días presente · ${r.ausente} días ausente <span style="color:var(--warn)">(contado hasta el día 15 — próximo período inicia como ausente)</span>`
+            : `→ ${r.presente} días presente · ${r.ausente} días ausente`;
+          html+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ok)">${nota}</div>`;
         }
       }
       html+='</div>';
@@ -455,14 +469,14 @@ function renderReporte(){
     <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">${p.iniStr} → ${p.finStr} · ${p.dias} días</div>`;
 
   if(pendientes.length>0){
-    html+=`<div class="alert alert-warn">⚠️ <strong>${pendientes.length} habitación(es) con regreso pendiente:</strong> ${pendientes.map(x=>'Hab '+x.h).join(', ')}. Ve a <strong>Seguimiento</strong> para registrar el regreso, o esos días no se calcularán correctamente.</div>`;
+    html+=`<div class="alert alert-warn">⚠️ <strong>${pendientes.length} habitación(es) no regresaron antes del día 15:</strong> ${pendientes.map(x=>'Hab '+x.h).join(', ')}. Sus días ausentes se contaron hasta el día 15. En el próximo período estas habitaciones inician como ausentes desde el día 15.</div>`;
   } else {
     html+=`<div class="alert alert-ok">✅ Todas las habitaciones están completas. El reporte está listo para usar en el sistema principal.</div>`;
   }
 
   html+=`<div class="g4" style="margin-bottom:1.25rem">
     <div class="mc"><div class="mc-l">Habitaciones</div><div class="mc-v">${ALL_HABS.length}</div></div>
-    <div class="mc ${pendientes.length>0?'err':'ok'}"><div class="mc-l">Pendientes</div><div class="mc-v">${pendientes.length}</div></div>
+    <div class="mc ${pendientes.length>0?'warn':'ok'}"><div class="mc-l">No regresaron al 15</div><div class="mc-v">${pendientes.length}</div></div>
     <div class="mc ok"><div class="mc-l">Total días presentes</div><div class="mc-v">${totalPresente}</div></div>
     <div class="mc"><div class="mc-l">Total días ausentes</div><div class="mc-v">${totalAusente}</div></div>
   </div>
@@ -475,10 +489,10 @@ function renderReporte(){
     html+=`<tr class="piso-hdr"><td colspan="5">🏢 Piso ${piso}</td></tr>`;
     results.filter(x=>habs.includes(x.h)).forEach(({h,r})=>{
       const presHtml=r.pendiente
-        ?'<span class="badge b-warn">⏳ Pendiente</span>'
+        ?`<strong style="font-size:17px">${r.presente}</strong> <span style="font-size:12px;color:var(--muted)">de ${p.dias}</span> <span class="badge b-warn" style="font-size:10px">no regresó al 15</span>`
         :`<strong style="font-size:17px">${r.presente}</strong> <span style="font-size:12px;color:var(--muted)">de ${p.dias}</span>`;
       const ausHtml=r.ausente>0?`<strong style="color:var(--err)">${r.ausente}</strong>`:'<span style="color:var(--hint)">—</span>';
-      const badge=r.pendiente?'<span class="badge b-warn">⏳ Pendiente</span>'
+      const badge=r.pendiente?'<span class="badge b-warn">⚠️ No regresó al 15</span>'
         :r.sinMovs?'<span class="badge b-neutral">Mes completo</span>'
         :r.ausente>0?`<span class="badge b-err">${r.ausente}d fuera</span>`
         :'<span class="badge b-ok">Sin ausencias</span>';
