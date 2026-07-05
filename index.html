@@ -942,12 +942,9 @@ initForm();
           odApp.setActiveAccount(r.account);
           await afterLogin(r.account);
         }catch(e){
-          if(String(e).includes('popup')){
-            odApp.loginRedirect({scopes:SCOPES});
-          }else{
-            badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
-            console.warn('login error',e);
-          }
+          console.warn('popup failed, trying redirect:',e);
+          try{ await odApp.loginRedirect({scopes:SCOPES}); }
+          catch(e2){ badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b'); document.getElementById('od-modal').style.display='flex'; }
         }
       });
     }catch(e){console.warn('OD boot',e);}
