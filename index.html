@@ -923,15 +923,15 @@ function renderReporteDetalle(){
     pisoHabs.forEach(code=>{
       const h = habs.find(x=>x.hab===code);
       if(!h) return;
-      // Calculate luz from all sources
       var luz_p = parseFloat(h.luz_piso)||0;
       var luz_c = parseFloat(h.luz_com)||0;
-      var luz = luz_p + luz_c;
-      // If luz is 0 but total > 0, estimate from total - agua
-      if(luz===0 && h.total>0) luz = (parseFloat(h.total)||0) - (parseFloat(h.agua)||0);
       var agua = parseFloat(h.agua)||0;
       var total = parseFloat(h.total)||0;
       var dias = parseInt(h.dias)||0;
+      // luz = luz_piso + luz_com; if both 0 but total > 0, derive from total - agua
+      var luz = luz_p + luz_c;
+      if(luz===0 && total>0 && agua>0) luz = Math.round((total - agua)*100)/100;
+      if(luz===0 && total>0 && agua===0) luz = total;
       html += '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:1.25rem;font-family:Segoe UI,sans-serif">'
         +'<div style="border-bottom:2px solid #1e3a5f;padding-bottom:10px;margin-bottom:14px">'
         +'<div style="font-size:16px;font-weight:700;color:#1e3a5f">Habitación '+code+'</div>'
