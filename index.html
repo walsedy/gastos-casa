@@ -235,7 +235,7 @@ function showTab(t){
   var pane = document.getElementById('pane-'+t);
   if(pane) pane.classList.add('active');
   if(t==='historial') renderHistorial();
-  if(t==='reportes'){ var c=document.getElementById('reportes_container'); if(c&&c.innerHTML.trim()==='') renderReportes(); else renderReportes(); }
+  if(t==='reportes') renderReportes();
   if(t==='dashboard') renderDashboard();
 }
 
@@ -526,7 +526,7 @@ function renderHistorial(){
       +'<div style="font-size:12px;color:var(--muted);margin-top:3px">'+r.diasTotal+' días · '+r.consumo_mp.toFixed(0)+' kWh · Agua S/. '+(r.agua||0).toFixed(2)+'</div></div>'
       +'<div style="display:flex;align-items:center;gap:8px">'
       +'<div style="font-size:18px;font-weight:700;color:var(--acc)">S/. '+(r.total_inq||0).toFixed(2)+'</div>'
-      +'<button class="btn btn-sm" style="color:var(--acc-d);border-color:#93c5fd" onclick="editarRegistro(''+r.fecha_act+'')">✏️ Editar</button>'
+      +'<button class="btn btn-sm" style="color:var(--acc-d);border-color:#93c5fd" data-fecha="'+r.fecha_act+'" onclick="editarRegistro(this.dataset.fecha)">&#9999; Editar</button>'
       +'<button class="btn btn-err btn-sm" onclick="eliminarRegistro('+ri+')">🗑</button>'
       +'</div></div>';
   }).join('');
@@ -559,10 +559,10 @@ function editarRegistro(fecha_act){
   if(el_kwh) el_kwh.value = r.consumo_mp||'';
   if(el_soles) el_soles.value = r.mp_soles||'';
   // Restore meter readings
-  if(el_m3ant) { el_m3ant.value = r.m3_ant||(r.consumo_m3?''); el_m3ant.readOnly=false; el_m3ant.className=''; }
-  if(el_m3act) el_m3act.value = r.m3_act||(r.consumo_m3?'');
-  if(el_m4ant) { el_m4ant.value = r.m4_ant||(r.consumo_m4?''); el_m4ant.readOnly=false; el_m4ant.className=''; }
-  if(el_m4act) el_m4act.value = r.m4_act||(r.consumo_m4?'');
+  if(el_m3ant) { el_m3ant.value = r.m3_ant||''; el_m3ant.readOnly=false; el_m3ant.className=''; }
+  if(el_m3act) el_m3act.value = r.m3_act||'';
+  if(el_m4ant) { el_m4ant.value = r.m4_ant||''; el_m4ant.readOnly=false; el_m4ant.className=''; }
+  if(el_m4act) el_m4act.value = r.m4_act||'';
   if(el_agua) el_agua.value = r.agua||'';
 
   // Fill hab days
@@ -967,28 +967,46 @@ function renderReporteDetalle(){
 }
 
 function imprimirUna(){
-  const sel = document.getElementById('rep-mes-sel');
+  var sel = document.getElementById('rep-mes-sel');
   if(!sel) return;
-  const regs = getRegistros();
-  const r = regs.find(x=>x.fecha_act===sel.value);
+  var regs = getRegistros();
+  var r = regs.find(function(x){return x.fecha_act===sel.value;});
   if(!r) return;
-  const periodo_label = r.periodo_label||r.periodo;
-  // Show hab selector modal
-  const habs = r.habitaciones||[];
-  const opts = '<option value="casa">🏠 Casa (propietario)</option>'
-    +[...HABS_P3,...HABS_P4].map(code=>'<option value="'+code+'">Hab '+code+'</option>').join('');
-  const existing = document.getElementById('hab-print-modal');
+  window._printFechaAct = r.fecha_act;
+  var opts = '<option value="casa">Casa (propietario)</option>';
+  [...HABS_P3,...HABS_P4].forEach(function(code){
+    opts += '<option value="'+code+'">Hab '+code+'</option>';
+  });
+  var existing = document.getElementById('hab-print-modal');
   if(existing) existing.remove();
-  const modal = document.createElement('div');
-  modal.id='hab-print-modal';
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
-  modal.innerHTML='<div style="background:#fff;border-radius:12px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)">'
-    +'<div style="font-size:16px;font-weight:600;margin-bottom:1rem">Selecciona una habitación</div>'
-    +'<select id="hab-print-sel" style="width:100%;padding:8px 10px;font-size:14px;border-radius:6px;border:1px solid #ccc;margin-bottom:1rem">'+opts+'</select>'
-    +'<div style="display:flex;gap:8px;justify-content:flex-end">'
-    +'<button onclick="document.getElementById('hab-print-modal').remove()" style="padding:8px 16px;border-radius:6px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer">Cancelar</button>'
-    +'<button onclick="ejecutarImpresionUna(''+r.fecha_act+'')" style="padding:8px 16px;border-radius:6px;border:none;background:#1e3a5f;color:#fff;cursor:pointer;font-weight:600">🖨 Imprimir</button>'
-    +'</div></div>';
+  var modal = document.createElement('div');
+  modal.id = 'hab-print-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:12px;padding:1.5rem;max-width:360px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)';
+  var title = document.createElement('div');
+  title.style.cssText = 'font-size:16px;font-weight:600;margin-bottom:1rem';
+  title.textContent = 'Selecciona una habitacion';
+  var selEl = document.createElement('select');
+  selEl.id = 'hab-print-sel';
+  selEl.style.cssText = 'width:100%;padding:8px 10px;font-size:14px;border-radius:6px;border:1px solid #ccc;margin-bottom:1rem';
+  selEl.innerHTML = opts;
+  var btnRow = document.createElement('div');
+  btnRow.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
+  var btnCancel = document.createElement('button');
+  btnCancel.style.cssText = 'padding:8px 16px;border-radius:6px;border:1px solid #ccc;background:#f5f5f5;cursor:pointer';
+  btnCancel.textContent = 'Cancelar';
+  btnCancel.onclick = function(){ modal.remove(); };
+  var btnOk = document.createElement('button');
+  btnOk.style.cssText = 'padding:8px 16px;border-radius:6px;border:none;background:#1e3a5f;color:#fff;cursor:pointer;font-weight:600';
+  btnOk.textContent = 'Imprimir';
+  btnOk.onclick = function(){ modal.remove(); ejecutarImpresionUna(window._printFechaAct); };
+  box.appendChild(title);
+  box.appendChild(selEl);
+  box.appendChild(btnRow);
+  btnRow.appendChild(btnCancel);
+  btnRow.appendChild(btnOk);
+  modal.appendChild(box);
   document.body.appendChild(modal);
 }
 
