@@ -966,8 +966,10 @@ function renderReporteDetalle(){
     html += '<tr style="background:var(--bg)"><td colspan="5" style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);padding:8px 10px">Piso '+piso+'</td></tr>';
     pisoHabs.forEach(code=>{
       const h=habs.find(x=>x.hab===code); if(!h) return;
-      const luz=(h.luz_piso||0)+(h.luz_com||0);
-      html+='<tr><td><strong>Hab '+code+'</strong></td><td>'+h.dias+'d</td><td>'+luz.toFixed(2)+'</td><td>'+(h.agua||0).toFixed(2)+'</td><td><strong>'+h.total.toFixed(2)+'</strong></td></tr>';
+      var lz=(parseFloat(h.luz_piso)||0)+(parseFloat(h.luz_com)||0);
+      var ag=parseFloat(h.agua)||0; var tot=parseFloat(h.total)||0;
+      if(lz===0&&tot>0) lz=Math.round((tot-ag)*100)/100;
+      html+='<tr><td><strong>Hab '+code+'</strong></td><td>'+h.dias+'d</td><td>'+lz.toFixed(2)+'</td><td>'+ag.toFixed(2)+'</td><td><strong>'+tot.toFixed(2)+'</strong></td></tr>';
     });
   });
 
@@ -1165,9 +1167,10 @@ function renderReporteDetalle(){
     pisoHabs.forEach(code=>{
       const h = habs.find(x=>x.hab===code);
       if(!h) return;
-      const luz = (h.luz_piso||0)+(h.luz_com||0);
-      const agua = h.agua||0;
-      const total = h.total||0;
+      var luz = (parseFloat(h.luz_piso)||0)+(parseFloat(h.luz_com)||0);
+      const agua = parseFloat(h.agua)||0;
+      const total = parseFloat(h.total)||0;
+      if(luz===0&&total>0) luz=Math.round((total-agua)*100)/100;
       const dias = h.dias||0;
       const color = piso===3?'#2563eb':'#7c3aed';
       const presente = dias>0;
@@ -1207,7 +1210,9 @@ function renderReporteDetalle(){
     pisoHabs.forEach(code=>{
       const h = habs.find(x=>x.hab===code);
       if(!h) return;
-      const luz=(h.luz_piso||0)+(h.luz_com||0);
+      var luz=(parseFloat(h.luz_piso)||0)+(parseFloat(h.luz_com)||0);
+      var aguaEj=parseFloat(h.agua)||0; var totEj=parseFloat(h.total)||0;
+      if(luz===0&&totEj>0) luz=Math.round((totEj-aguaEj)*100)/100;
       html += '<tr><td><strong>Hab '+code+'</strong></td><td>'+h.dias+' días</td>'
         +'<td>'+luz.toFixed(2)+'</td><td>'+(h.agua||0).toFixed(2)+'</td><td><strong>'+(h.total||0).toFixed(2)+'</strong></td></tr>';
     });
