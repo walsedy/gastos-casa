@@ -125,7 +125,7 @@ label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bot
   <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
     <div style="font-size:34px;margin-bottom:.75rem">☁️</div>
     <h2 style="font-size:17px;font-weight:700;margin-bottom:8px">Conectar con OneDrive</h2>
-    <p style="color:#6b6b6b;font-size:13px;margin-bottom:1.5rem">Se guardará una hoja <strong>"Ausencias"</strong> dentro de tu <strong>GastosCasa.xlsx</strong>, junto a lo demás.</p>
+    <p style="color:#6b6b6b;font-size:13px;margin-bottom:1.5rem">Se guardará en <strong>ControlAusencias.xlsx</strong>, en tu OneDrive (carpeta GastosCasa), separado del sistema de gastos.</p>
     <button id="od-btn-login" style="width:100%;padding:11px;background:#0078d4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Iniciar sesión con Microsoft</button>
     <button onclick="document.getElementById('od-modal').style.display='none'" style="margin-top:8px;width:100%;padding:9px;background:#f5f4f0;color:#1a1a1a;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">Usar sin OneDrive</button>
   </div>
@@ -590,13 +590,14 @@ document.getElementById('mes').value=defaultMes();
 onMesChange();
 
 // ═══════════════════════════════════════════════
-// ONEDRIVE SYNC — usa la misma app y el mismo GastosCasa.xlsx
-// (agrega una hoja "Ausencias" nueva; no toca las hojas de gastos-casa)
+// ONEDRIVE SYNC — usa la misma app que gastos-casa, pero un archivo propio
+// (ControlAusencias.xlsx, en la misma carpeta GastosCasa; no toca GastosCasa.xlsx)
 // ═══════════════════════════════════════════════
 (function(){
   var OD_ID  = 'c9c4478d-f8c5-4253-b1ed-c20fedaa5e9b';
   var SCOPES = ['Files.ReadWrite.All','User.Read'];
   var REDIRECT = 'https://walsedy.github.io/gastos-casa/';
+  var FILE_NAME = 'ControlAusencias.xlsx';
   var HEADERS_AUS = ['MesKey','Periodo','Piso','Habitación','Tipo','Fecha','Nota','ID'];
   var odApp=null, odFileId=null, odConnected=false, odSyncing=false;
 
@@ -631,7 +632,7 @@ onMesChange();
 
   async function ensureFile(){
     try{
-      var r=await odGraph("/me/drive/root:/GastosCasa:/children?$filter=name eq 'GastosCasa.xlsx'&$select=id,name").catch(function(){return {value:[]};});
+      var r=await odGraph("/me/drive/root:/GastosCasa:/children?$filter=name eq '"+FILE_NAME+"'&$select=id,name").catch(function(){return {value:[]};});
       if(r.value&&r.value.length>0){ odFileId=r.value[0].id; await ensureAusenciasSheet(); return; }
       badge('⏳ Creando archivo...','#eff6ff','#1d4ed8');
       var tok=await getToken();
@@ -640,7 +641,7 @@ onMesChange();
       var wb=new ExcelJS.Workbook();
       wb.addWorksheet('Ausencias').addRow(HEADERS_AUS);
       var buf=await wb.xlsx.writeBuffer();
-      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa.xlsx:/content',{
+      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/'+FILE_NAME+':/content',{
         method:'PUT',
         headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
         body:buf
