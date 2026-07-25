@@ -166,6 +166,7 @@ label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bot
       <button class="btn" onclick="descargarBackupJSON()">💾 Backup (JSON)</button>
       <button class="btn" onclick="document.getElementById('import-file').click()">📂 Restaurar backup</button>
       <button class="btn" onclick="descargarExcel()">📊 Descargar Excel</button>
+      <button class="btn" style="background:#fef2f2;color:#b91c1c;border-color:#fca5a5;font-weight:700" onclick="borrarTodo()">⚠️ Borrar todo</button>
     </div>
     <input type="file" id="import-file" accept="application/json" style="display:none" onchange="restaurarBackupJSON(event)">
     <div id="backup-msg" style="margin-top:10px"></div>
@@ -588,6 +589,22 @@ function descargarExcel(){
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resumenRows),'Resumen');
   XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Historial completo');
   XLSX.writeFile(wb,'control-ausencias-'+todayFileStamp()+'.xlsx');
+}
+
+async function borrarTodo(){
+  if(!confirm('⚠️ Esto borrará TODOS los movimientos registrados (todos los meses y habitaciones), en este navegador.\n\n¿Seguro que quieres continuar?')) return;
+  if(!confirm('🔴 Confirmación final: los datos se van a eliminar y no se pueden recuperar (salvo que tengas un backup descargado).\n\n¿Borrar todo de todas formas?')) return;
+  saveStore({});
+  openHab=null;
+  fechaAbierta={};
+  renderHabitaciones();
+  if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
+  const msg=document.getElementById('backup-msg');
+  if(typeof odPushCloud==='function'){
+    msg.innerHTML='<div class="msg-warn">Borrando también en OneDrive...</div>';
+    await odPushCloud();
+  }
+  msg.innerHTML='<div class="msg-ok">✓ Todo borrado. Puedes empezar de cero.</div>';
 }
 
 buildMesOptions();
