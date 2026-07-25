@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Ausencias — Gastos de Casa</title>
 <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script>
+if(typeof ExcelJS === 'undefined'){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"><\/script>');
+}
+</script>
 <script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
 <script>
 if(typeof msal === 'undefined'){
@@ -590,16 +595,16 @@ document.getElementById('mes').value=defaultMes();
 onMesChange();
 
 // ═══════════════════════════════════════════════
-// ONEDRIVE SYNC — usa la misma app que gastos-casa, pero un archivo propio
-// (ControlAusencias.xlsx, en la misma carpeta GastosCasa; no toca GastosCasa.xlsx)
+// ONEDRIVE SYNC — usa la misma app que gastos-casa, pero apunta siempre
+// al ControlAusencias.xlsx compartido (mismo archivo para todos)
 // ═══════════════════════════════════════════════
 (function(){
   var OD_ID  = 'c9c4478d-f8c5-4253-b1ed-c20fedaa5e9b';
   var SCOPES = ['Files.ReadWrite.All','User.Read'];
   var REDIRECT = 'https://walsedy.github.io/gastos-casa/';
-  var FILE_NAME = 'ControlAusencias.xlsx';
+  var SHARE_URL = 'https://1drv.ms/x/c/059923ca27721cd7/IQCvx67DaKySSrsodbdTlA7qAbS4OGYEVeGt6eO0P7KBwsU?e=bUQJm4';
   var HEADERS_AUS = ['MesKey','Periodo','Piso','Habitación','Tipo','Fecha','Nota','ID'];
-  var odApp=null, odFileId=null, odConnected=false, odSyncing=false;
+  var odApp=null, odFileId=null, odDriveId=null, odConnected=false, odSyncing=false;
 
   function badge(txt,bg,col){
     var el=document.getElementById('od-badge');
@@ -630,35 +635,39 @@ onMesChange();
     return s;
   }
 
+  function encodeShareId(url){
+    var b64=btoa(url).replace(/=+$/,'').replace(/\//g,'_').replace(/\+/g,'-');
+    return 'u!'+b64;
+  }
+
+  function wbBase(){ return '/drives/'+odDriveId+'/items/'+odFileId+'/workbook'; }
+
+  async function resolveSharedFile(){
+    var shareId=encodeShareId(SHARE_URL);
+    var item=await odGraph('/shares/'+shareId+'/driveItem?$select=id,name,parentReference');
+    if(!item||!item.id||!item.parentReference) throw new Error('No se pudo abrir el archivo compartido — revisa que el enlace siga vigente y tenga permiso de edición');
+    odFileId=item.id;
+    odDriveId=item.parentReference.driveId;
+  }
+
   async function ensureFile(){
     try{
-      var r=await odGraph("/me/drive/root:/GastosCasa:/children?$filter=name eq '"+FILE_NAME+"'&$select=id,name").catch(function(){return {value:[]};});
-      if(r.value&&r.value.length>0){ odFileId=r.value[0].id; await ensureAusenciasSheet(); return; }
-      badge('⏳ Creando archivo...','#eff6ff','#1d4ed8');
-      var tok=await getToken();
-      try{ await odGraph('/me/drive/root/children',{method:'POST',body:JSON.stringify({name:'GastosCasa',folder:{},'@microsoft.graph.conflictBehavior':'ignore'})}); }catch(e){}
-      await new Promise(function(res){setTimeout(res,1500);});
-      var wb=new ExcelJS.Workbook();
-      wb.addWorksheet('Ausencias').addRow(HEADERS_AUS);
-      var buf=await wb.xlsx.writeBuffer();
-      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/'+FILE_NAME+':/content',{
-        method:'PUT',
-        headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
-        body:buf
-      });
-      var crData=await cr.json();
-      odFileId=crData.id;
-      await new Promise(function(res){setTimeout(res,2000);});
-    }catch(e){console.warn('ensureFile',e);}
+      await resolveSharedFile();
+      await ensureAusenciasSheet();
+    }catch(e){
+      console.warn('ensureFile',e);
+      badge('⚠️ '+(e.message||'Error abriendo el archivo compartido'),'#fef2f2','#b91c1c');
+      throw e;
+    }
   }
 
   async function ensureAusenciasSheet(){
     try{
-      var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name');
+      var sheets=await odGraph(wbBase()+'/worksheets?$select=name');
       var names=(sheets.value||[]).map(function(s){return s.name;});
       if(names.indexOf('Ausencias')===-1){
-        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Ausencias'})});
-        await odGraph('/me/drive/items/'+odFileId+"/workbook/worksheets/Ausencias/range(address='A1:H1')",{method:'PATCH',body:JSON.stringify({values:[HEADERS_AUS]})});
+        await odGraph(wbBase()+'/worksheets',{method:'POST',body:JSON.stringify({name:'Ausencias'})});
+        await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A1:H1')",{method:'PATCH',body:JSON.stringify({values:[HEADERS_AUS]})});
       }
     }catch(e){console.warn('ensureAusenciasSheet',e);}
   }
@@ -703,7 +712,7 @@ onMesChange();
       for(var i=0;i<vals.length;i+=20){
         var chunk=vals.slice(i,Math.min(i+20,vals.length));
         var startRow=i+1, endRow=startRow+chunk.length-1;
-        await odGraph('/me/drive/items/'+odFileId+"/workbook/worksheets/Ausencias/range(address='A"+startRow+':'+cols+endRow+"')",{method:'PATCH',body:JSON.stringify({values:chunk})});
+        await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A"+startRow+':'+cols+endRow+"')",{method:'PATCH',body:JSON.stringify({values:chunk})});
       }
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
       badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
@@ -715,7 +724,7 @@ onMesChange();
     if(!odConnected||!odFileId) return;
     badge('⏳ Sincronizando...','#eff6ff','#1d4ed8');
     try{
-      var d=await odGraph('/me/drive/items/'+odFileId+"/workbook/worksheets/Ausencias/usedRange?$select=values");
+      var d=await odGraph(wbBase()+"/worksheets/Ausencias/usedRange?$select=values");
       var rows=d.values||[];
       if(rows.length>1){
         saveStore(rowsToStore(rows));
@@ -758,8 +767,8 @@ onMesChange();
         badge('⏳ Conectando...','#eff6ff','#1d4ed8');
         try{
           await odApp.loginPopup({scopes:SCOPES, redirectUri:REDIRECT, prompt:'select_account'});
-          await afterLogin();
-        }catch(e){ console.warn('login popup error',e); badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b'); }
+        }catch(e){ console.warn('login popup error',e); badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b'); return; }
+        try{ await afterLogin(); }catch(e){ /* ensureFile ya dejó el mensaje de error en el badge */ }
       });
     }catch(e){ console.warn('OD boot',e); }
   });
