@@ -4,127 +4,109 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Control de Ausencias — Gastos de Casa</title>
+<script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script>
+if(typeof msal === 'undefined'){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"><\/script>');
+}
+</script>
 <style>
-:root{--bg:#f0efe9;--surface:#fff;--border:rgba(0,0,0,.09);--bs:rgba(0,0,0,.16);--text:#1a1a1a;--muted:#6b6b6b;--hint:#aaa;--acc:#2563eb;--acc-l:#eff6ff;--acc-d:#1d4ed8;--ok:#15803d;--ok-l:#f0fdf4;--ok-b:#86efac;--err:#b91c1c;--err-l:#fef2f2;--err-b:#fca5a5;--warn:#92400e;--warn-l:#fffbeb;--warn-b:#fcd34d;--r:12px;--rs:8px;--sh:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05)}
+:root{--bg:#f0efe9;--surface:#fff;--border:rgba(0,0,0,.09);--bs:rgba(0,0,0,.16);--text:#1a1a1a;--muted:#6b6b6b;--hint:#aaa;--acc:#2563eb;--acc-l:#eff6ff;--acc-d:#1d4ed8;--ok:#15803d;--ok-l:#f0fdf4;--ok-b:#86efac;--err:#b91c1c;--err-l:#fef2f2;--err-b:#fca5a5;--warn:#92400e;--warn-l:#fffbeb;--warn-b:#fcd34d;--sal:#c2410c;--sal-l:#fff7ed;--sal-b:#fed7aa;--r:12px;--rs:8px;--sh:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh}
-/* HEADER */
-header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.5rem;display:flex;align-items:center;gap:12px;height:58px;position:sticky;top:0;z-index:200;box-shadow:var(--sh)}
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 1.25rem;display:flex;align-items:center;gap:12px;height:58px;position:sticky;top:0;z-index:200;box-shadow:var(--sh)}
 .h-icon{width:36px;height:36px;background:#1e3a5f;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
 header h1{font-size:16px;font-weight:600;letter-spacing:-.01em}
-#h-periodo{font-size:12px;color:var(--muted);background:var(--bg);padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
-.h-link{margin-left:auto;font-size:12px;color:var(--acc);text-decoration:none;font-weight:600;padding:6px 12px;border-radius:var(--rs);border:1px solid var(--border)}
-.h-link:hover{background:var(--acc-l)}
-/* LAYOUT */
-.container{max-width:920px;margin:0 auto;padding:1.5rem 1.5rem 5rem}
-/* TABS */
-.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:1.5rem;box-shadow:var(--sh)}
-.tab{flex:1;padding:9px 12px;border-radius:var(--rs);font-size:13px;font-weight:500;cursor:pointer;text-align:center;color:var(--muted);border:none;background:transparent;transition:all .15s;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px}
-.tab:hover{background:var(--bg)}
+.h-link{font-size:12px;color:var(--acc);text-decoration:none;font-weight:600;padding:6px 12px;border-radius:var(--rs);border:1px solid var(--border)}
+.container{max-width:720px;margin:0 auto;padding:1.25rem 1.25rem 5rem}
+.tabs{display:flex;gap:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:4px;margin-bottom:1.25rem;box-shadow:var(--sh)}
+.tab{flex:1;padding:11px 12px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;text-align:center;color:var(--muted);border:none;background:transparent;font-family:inherit}
 .tab.active{background:#1e3a5f;color:#fff}
 .pane{display:none}.pane.active{display:block}
-/* CARD */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1rem;box-shadow:var(--sh)}
-.card-title{font-size:14px;font-weight:600;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;color:var(--text)}
-.card-title .ct-icon{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.ct-blue{background:#dbeafe}.ct-green{background:#dcfce7}.ct-yellow{background:#fef9c3}.ct-red{background:#fee2e2}.ct-gray{background:#f3f4f6}
-/* FORM */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1.1rem 1.25rem;margin-bottom:1rem;box-shadow:var(--sh)}
+.periodo-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.periodo-txt{font-size:13px;color:var(--muted)}
+.periodo-txt b{color:var(--text)}
+select{padding:9px 12px;font-size:14px;border-radius:var(--rs);border:1px solid var(--bs);background:#fafaf8;color:var(--text);font-family:inherit}
+input[type=date],input[type=text]{width:100%;padding:9px 12px;font-size:15px;border-radius:var(--rs);border:1px solid var(--bs);background:#fafaf8;color:var(--text);font-family:inherit}
 label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
-select,input[type=date],input[type=text]{width:100%;padding:9px 12px;font-size:14px;border-radius:var(--rs);border:1px solid var(--bs);background:#fafaf8;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s,box-shadow .15s}
-select:focus,input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99,235,.12);background:var(--surface)}
-/* GRIDS */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-/* BUTTONS */
-.btn{padding:9px 18px;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--bs);background:var(--surface);color:var(--text);font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
-.btn:hover{background:var(--bg)}
-.btn:active{transform:scale(.98)}
-.btn-p{background:#1e3a5f;color:#fff;border-color:#122540}.btn-p:hover{background:#162d4a}
-.btn-ok{background:var(--ok);color:#fff;border-color:#166534}.btn-ok:hover{background:#166534}
-.btn-salida{background:#fff7ed;color:#c2410c;border-color:#fed7aa}.btn-salida:hover{background:#ffedd5}
-.btn-regreso{background:#f0fdf4;color:#15803d;border-color:#86efac}.btn-regreso:hover{background:#dcfce7}
-.btn-sm{padding:5px 10px;font-size:12px}
-.btn-del{color:var(--err);border-color:var(--err-b)}.btn-del:hover{background:var(--err-l)}
-.btn-edit{color:var(--acc);border-color:#93c5fd}.btn-edit:hover{background:var(--acc-l)}
-/* METRIC CARDS */
+.hint{font-size:13px;color:var(--muted);margin-bottom:1rem;background:var(--acc-l);border:1px solid #93c5fd;color:var(--acc-d);padding:10px 14px;border-radius:var(--rs)}
+.piso-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:1.1rem 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.hab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.hab-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid transparent;border-radius:var(--r);padding:12px;cursor:pointer;text-align:left;font-family:inherit}
+.hab-card.fuera{border-left-color:var(--sal);background:var(--sal-l)}
+.hab-card.dentro{border-left-color:var(--ok-b)}
+.hab-card.open{border-color:#1e3a5f;border-left-color:#1e3a5f;border-width:2px;border-left-width:4px;padding:11px}
+.hab-top{display:flex;align-items:center;justify-content:space-between}
+.hab-num{font-size:18px;font-weight:700;color:#1e3a5f}
+.dot{width:9px;height:9px;border-radius:50%}
+.dot.dentro{background:var(--ok)}
+.dot.fuera{background:var(--sal)}
+.hab-status{font-size:11.5px;color:var(--muted);margin-top:4px}
+.hab-status.fuera{color:var(--sal);font-weight:700}
+.alert-fuera{background:var(--sal-l);border:1px solid var(--sal-b);color:var(--sal);padding:10px 14px;border-radius:var(--rs);font-size:13px;font-weight:600;margin-bottom:1rem}
+.alert-fuera b{cursor:pointer;text-decoration:underline}
+.panel{grid-column:1/-1;background:var(--acc-l);border:1px solid #93c5fd;border-radius:var(--r);padding:1.1rem;margin-top:2px}
+.panel-title{font-size:15px;font-weight:700;margin-bottom:.9rem}
+.panel-row{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:10px}
+.big-btn{width:100%;border:none;border-radius:var(--rs);padding:14px;font-size:15px;font-weight:700;cursor:pointer;color:#fff;margin-bottom:10px}
+.big-btn.salida{background:var(--sal)}
+.big-btn.regreso{background:var(--ok)}
+.link-btn{display:block;width:100%;text-align:center;background:none;border:none;color:var(--acc);font-size:12.5px;font-weight:600;cursor:pointer;padding:2px 0 4px;text-decoration:underline;font-family:inherit}
+.msg-ok{background:var(--ok-l);color:var(--ok);border:1px solid var(--ok-b);padding:8px 12px;border-radius:var(--rs);font-size:13px;font-weight:600;margin-bottom:10px}
+.msg-warn{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn-b);padding:8px 12px;border-radius:var(--rs);font-size:13px;font-weight:600;margin-bottom:10px}
+.mini-log{border-top:1px solid #93c5fd;padding-top:10px;margin-top:4px}
+.mini-title{font-size:11px;font-weight:700;color:var(--acc-d);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.mini-row{display:flex;align-items:center;gap:8px;background:#fff;border-radius:var(--rs);padding:7px 10px;margin-bottom:5px;font-size:12.5px}
+.mini-tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px}
+.mini-tag.salida{background:var(--sal-l);color:var(--sal)}
+.mini-tag.regreso{background:var(--ok-l);color:var(--ok)}
+.mini-info{flex:1}
+.mini-fecha{color:var(--muted)}
+.mini-nota{color:var(--hint);font-style:italic}
+.icon-btn{border:none;background:none;color:var(--muted);font-size:14px;cursor:pointer;padding:3px 6px}
+.icon-btn:hover{color:var(--text)}
+.empty-txt{font-size:12.5px;color:var(--hint)}
 .mc{background:var(--bg);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px}
 .mc-l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-weight:500}
-.mc-v{font-size:24px;font-weight:700;letter-spacing:-.02em}
-.mc-s{font-size:12px;color:var(--hint);margin-top:2px}
-.mc.ok{background:var(--ok-l);border-color:var(--ok-b)}.mc.ok .mc-l{color:var(--ok)}.mc.ok .mc-v{color:var(--ok)}
-.mc.err{background:var(--err-l);border-color:var(--err-b)}.mc.err .mc-l{color:var(--err)}.mc.err .mc-v{color:var(--err)}
-.mc.warn{background:var(--warn-l);border-color:var(--warn-b)}.mc.warn .mc-l{color:var(--warn)}.mc.warn .mc-v{color:var(--warn)}
-/* BADGES */
-.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px}
+.mc-v{font-size:22px;font-weight:700}
+.mc.ok{background:var(--ok-l);border-color:var(--ok-b)}.mc.ok .mc-l,.mc.ok .mc-v{color:var(--ok)}
+.mc.warn{background:var(--warn-l);border-color:var(--warn-b)}.mc.warn .mc-l,.mc.warn .mc-v{color:var(--warn)}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.rt{width:100%;border-collapse:collapse;font-size:13px}
+.rt th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--bg)}
+.rt td{padding:9px 10px;border-bottom:1px solid var(--border)}
+.piso-hdr td{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted)}
+.badge{display:inline-flex;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px}
 .b-ok{background:var(--ok-l);color:var(--ok);border:1px solid var(--ok-b)}
-.b-err{background:var(--err-l);color:var(--err);border:1px solid var(--err-b)}
 .b-warn{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn-b)}
 .b-neutral{background:var(--bg);color:var(--muted);border:1px solid var(--border)}
-.b-blue{background:var(--acc-l);color:var(--acc-d);border:1px solid #93c5fd}
-/* HAB CARDS */
-.hab-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
-.hab-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:1rem;transition:box-shadow .15s}
-.hab-card:hover{box-shadow:var(--sh)}
-.hab-card.has-movs{border-left:3px solid var(--acc)}
-.hab-card.pendiente{border-left:3px solid #f59e0b}
-.hab-card.completo-sin-movs{border-left:3px solid #d1d5db}
-.hab-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.hab-num{font-size:15px;font-weight:700;color:#1e3a5f}
-.hab-actions{display:flex;gap:5px}
-.mov-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:var(--rs);background:var(--bg);margin-bottom:4px;font-size:12px}
-.mov-item:last-child{margin-bottom:0}
-.mov-ico{width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
-.mov-ico.salida{background:#fff7ed}
-.mov-ico.regreso{background:#f0fdf4}
-.mov-info{flex:1}
-.mov-tipo{font-weight:600;font-size:12px}
-.mov-fecha{color:var(--muted);font-size:11px}
-.mov-nota{color:var(--hint);font-style:italic;font-size:11px}
-.mov-btns{display:flex;gap:4px}
-/* TABLE */
-.rt{width:100%;border-collapse:collapse;font-size:13px}
-.rt th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)}
-.rt td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
-.rt tbody tr:hover td{background:#fafaf8}
-.piso-hdr td{background:var(--bg);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 12px}
-/* ALERTS */
-.alert{padding:10px 14px;border-radius:var(--rs);font-size:13px;font-weight:500;margin-bottom:12px;display:flex;align-items:flex-start;gap:8px}
-.alert-ok{background:var(--ok-l);color:var(--ok);border:1px solid var(--ok-b)}
-.alert-warn{background:var(--warn-l);color:var(--warn);border:1px solid var(--warn-b)}
-.alert-err{background:var(--err-l);color:var(--err);border:1px solid var(--err-b)}
-.alert-info{background:var(--acc-l);color:var(--acc-d);border:1px solid #93c5fd}
-/* MODAL */
+.footer-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);flex-wrap:wrap}
+.btn{padding:10px 16px;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--bs);background:var(--surface);color:var(--text);font-family:inherit}
+.btn-ok{background:var(--ok);color:#fff;border-color:#166534}
 #modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;padding:1rem}
 #modal-overlay.show{display:flex}
-#modal-box{background:var(--surface);border-radius:var(--r);max-width:440px;width:100%;padding:1.5rem;box-shadow:0 20px 60px rgba(0,0,0,.2);position:relative}
-/* MISC */
-.piso-section{margin-bottom:1.5rem}
-.piso-label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border)}
-.empty-hab{font-size:12px;color:var(--hint);padding:4px 0}
-@media(max-width:600px){.g2,.g3,.g4{grid-template-columns:1fr 1fr}.hab-grid{grid-template-columns:1fr}}
+#modal-box{background:var(--surface);border-radius:var(--r);max-width:420px;width:100%;padding:1.4rem;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 @media print{header,.no-print{display:none!important}body{background:#fff}}
 </style>
 </head>
 <body>
 
-<!-- MODAL EDIT -->
 <div id="modal-overlay" onclick="if(event.target===this)closeModal()">
   <div id="modal-box">
-    <div style="font-size:16px;font-weight:600;margin-bottom:1.25rem" id="modal-title">Editar movimiento</div>
-    <div class="g2" style="margin-bottom:12px">
-      <div><label>Tipo</label>
-        <select id="edit-tipo">
-          <option value="salida">🚪 Salida</option>
-          <option value="regreso">🏠 Regreso</option>
-        </select>
-      </div>
-      <div><label>Fecha</label><input type="date" id="edit-fecha"></div>
+    <div style="font-size:16px;font-weight:600;margin-bottom:1.1rem" id="modal-title">Corregir registro</div>
+    <div style="margin-bottom:10px"><label>¿Qué fue?</label>
+      <select id="edit-tipo" style="width:100%">
+        <option value="salida">Salió</option>
+        <option value="regreso">Regresó</option>
+      </select>
     </div>
-    <div style="margin-bottom:16px"><label>Nota (opcional)</label><input type="text" id="edit-nota" placeholder="Ej: Viaje de trabajo..."></div>
+    <div style="margin-bottom:10px"><label>¿Qué día?</label><input type="date" id="edit-fecha"></div>
+    <div style="margin-bottom:16px"><label>Nota (opcional)</label><input type="text" id="edit-nota" placeholder="Ej: viaje de trabajo"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn" onclick="closeModal()">Cancelar</button>
-      <button class="btn btn-p" onclick="guardarEdicion()">💾 Guardar cambios</button>
+      <button class="btn btn-ok" onclick="guardarEdicion()">Guardar</button>
     </div>
     <div id="modal-msg" style="margin-top:10px"></div>
   </div>
@@ -133,85 +115,59 @@ select:focus,input:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
 <header>
   <div class="h-icon">🏠</div>
   <h1>Control de Ausencias</h1>
-  <span id="h-periodo"></span>
-  <a href="https://walsedy.github.io/gastos-casa/" class="h-link no-print">← Sistema principal</a>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px" class="no-print">
+    <span id="od-badge" onclick="odShowLogin()" style="font-size:11px;padding:3px 12px;border-radius:20px;font-weight:600;background:#f5f4f0;color:#6b6b6b;cursor:pointer;border:1px solid rgba(0,0,0,.1)">☁️ Conectar OneDrive</span>
+    <a href="https://walsedy.github.io/gastos-casa/" class="h-link">← Sistema principal</a>
+  </div>
 </header>
 
-<div class="container">
-  <div class="tabs">
-    <button class="tab active" onclick="showTab('registrar')">📝 Registrar</button>
-    <button class="tab" onclick="showTab('seguimiento')">👁 Seguimiento</button>
-    <button class="tab" onclick="showTab('reporte')">📊 Reporte final</button>
-  </div>
-
-  <!-- REGISTRAR -->
-  <div id="pane-registrar" class="pane active">
-    <div class="card">
-      <div class="card-title"><div class="ct-icon ct-blue">📅</div> Período de lectura</div>
-      <div class="g2">
-        <div><label>Mes del período</label>
-          <select id="mes" onchange="onMesChange()">
-            <option value="2026-01">Enero 2026</option><option value="2026-02">Febrero 2026</option>
-            <option value="2026-03">Marzo 2026</option><option value="2026-04">Abril 2026</option>
-            <option value="2026-05">Mayo 2026</option><option value="2026-06">Junio 2026</option>
-            <option value="2026-07" selected>Julio 2026</option><option value="2026-08">Agosto 2026</option>
-            <option value="2026-09">Septiembre 2026</option><option value="2026-10">Octubre 2026</option>
-            <option value="2026-11">Noviembre 2026</option><option value="2026-12">Diciembre 2026</option>
-          </select>
-        </div>
-        <div style="display:flex;align-items:flex-end;padding-bottom:2px">
-          <div id="periodo-info" style="font-size:13px;color:var(--muted);font-weight:500;line-height:1.4"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title"><div class="ct-icon ct-yellow">🚪</div> Nuevo movimiento</div>
-      <div class="alert alert-info" style="margin-bottom:1.25rem">
-        <span>ℹ️</span>
-        <span>Registra cada salida y regreso durante el mes. Las habitaciones <strong>sin movimientos</strong> se consideran presentes todo el período automáticamente.</span>
-      </div>
-      <div class="g3" style="margin-bottom:12px">
-        <div><label>Habitación</label>
-          <select id="hab_sel">
-            <optgroup label="— Piso 3 —">
-              <option value="301">Hab 301</option><option value="302">Hab 302</option>
-              <option value="304">Hab 304</option><option value="305">Hab 305</option><option value="306">Hab 306</option>
-            </optgroup>
-            <optgroup label="— Piso 4 —">
-              <option value="401">Hab 401</option><option value="402">Hab 402</option><option value="403">Hab 403</option>
-              <option value="404">Hab 404</option><option value="405">Hab 405</option><option value="406">Hab 406</option>
-            </optgroup>
-          </select>
-        </div>
-        <div><label>Tipo de movimiento</label>
-          <select id="tipo_mov">
-            <option value="salida">🚪 Salida</option>
-            <option value="regreso">🏠 Regreso</option>
-          </select>
-        </div>
-        <div><label>Fecha</label><input type="date" id="fecha_mov"></div>
-      </div>
-      <div style="margin-bottom:16px"><label>Nota (opcional)</label>
-        <input type="text" id="nota_mov" placeholder="Ej: Viaje de trabajo, vacaciones familiares...">
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn btn-p" onclick="registrarMov()">✅ Registrar movimiento</button>
-      </div>
-      <div id="reg_msg" style="margin-top:12px"></div>
-    </div>
-  </div>
-
-  <!-- SEGUIMIENTO -->
-  <div id="pane-seguimiento" class="pane">
-    <div id="seg_content"></div>
-  </div>
-
-  <!-- REPORTE -->
-  <div id="pane-reporte" class="pane">
-    <div id="rep_content"></div>
+<div id="od-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#fff;border-radius:14px;max-width:380px;width:100%;padding:2rem;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="font-size:34px;margin-bottom:.75rem">☁️</div>
+    <h2 style="font-size:17px;font-weight:700;margin-bottom:8px">Conectar con OneDrive</h2>
+    <p style="color:#6b6b6b;font-size:13px;margin-bottom:1.5rem">Se guardará una hoja <strong>"Ausencias"</strong> dentro de tu <strong>GastosCasa.xlsx</strong>, junto a lo demás.</p>
+    <button id="od-btn-login" style="width:100%;padding:11px;background:#0078d4;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Iniciar sesión con Microsoft</button>
+    <button onclick="document.getElementById('od-modal').style.display='none'" style="margin-top:8px;width:100%;padding:9px;background:#f5f4f0;color:#1a1a1a;border:1px solid #ddd;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit">Usar sin OneDrive</button>
   </div>
 </div>
+
+<div class="container">
+  <div class="card">
+    <div class="periodo-bar">
+      <div class="periodo-txt" id="periodo-info"></div>
+      <select id="mes" onchange="onMesChange()"></select>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" id="tab-hab" onclick="showTab('hab')">🏢 Habitaciones</button>
+    <button class="tab" id="tab-rep" onclick="showTab('rep')">📊 Reporte del mes</button>
+  </div>
+
+  <div id="pane-hab" class="pane active">
+    <div class="hint">Toca una habitación para registrar su salida o su regreso. Las que no tocas se cuentan como presentes todo el mes.</div>
+    <div id="hab_content"></div>
+  </div>
+
+  <div id="pane-rep" class="pane">
+    <div id="rep_content"></div>
+  </div>
+
+  <div class="card no-print">
+    <div style="font-size:13px;font-weight:700;margin-bottom:4px">Respaldo de datos</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Los datos se guardan solo en este navegador. Descarga un respaldo de vez en cuando para no perderlos.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="od-sync-btn" style="display:none" onclick="odSync()">🔄 Sincronizar OneDrive</button>
+      <button class="btn" onclick="descargarBackupJSON()">💾 Backup (JSON)</button>
+      <button class="btn" onclick="document.getElementById('import-file').click()">📂 Restaurar backup</button>
+      <button class="btn" onclick="descargarExcel()">📊 Descargar Excel</button>
+    </div>
+    <input type="file" id="import-file" accept="application/json" style="display:none" onchange="restaurarBackupJSON(event)">
+    <div id="backup-msg" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
 const HABS_P3=[301,302,304,305,306], HABS_P4=[401,402,403,404,405,406];
@@ -219,6 +175,8 @@ const ALL_HABS=[...HABS_P3,...HABS_P4];
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const STORE='ausencias_v2';
 let editState=null;
+let openHab=null;
+let fechaAbierta={};
 
 function getStore(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){return {}}}
 function saveStore(d){localStorage.setItem(STORE,JSON.stringify(d))}
@@ -235,176 +193,161 @@ function getPeriodo(){
   return {ini,fin,dias,iniStr:fmt(ini),finStr:fmt(fin),iniISO,finISO};
 }
 
+function defaultMes(){
+  const now=new Date();
+  let y=now.getFullYear(), m=now.getMonth()+1;
+  if(now.getDate()<15){ m-=1; if(m<1){m=12;y-=1;} }
+  return y+'-'+String(m).padStart(2,'0');
+}
+
 function onMesChange(){
-  const p=getPeriodo(), [y,mo]=getMes().split('-').map(Number);
-  document.getElementById('periodo-info').innerHTML='<strong>'+p.iniStr+'</strong> → <strong>'+p.finStr+'</strong><br><span style="font-size:12px">'+p.dias+' días</span>';
-  document.getElementById('h-periodo').textContent=MONTHS[mo-1]+' '+y+' ('+p.dias+'d)';
-  const fd=document.getElementById('fecha_mov');
-  fd.min=p.iniISO; fd.max=p.finISO; fd.value='';
+  const p=getPeriodo();
+  document.getElementById('periodo-info').innerHTML='Registrando del <b>'+p.iniStr+'</b> al <b>'+p.finStr+'</b> ('+p.dias+' días)';
+  openHab=null;
+  renderHabitaciones();
+  if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
 }
 
 function showTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['registrar','seguimiento','reporte'][i]===t);
-  });
-  document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
-  document.getElementById('pane-'+t).classList.add('active');
-  if(t==='seguimiento') renderSeguimiento();
-  if(t==='reporte') renderReporte();
+  document.getElementById('tab-hab').classList.toggle('active',t==='hab');
+  document.getElementById('tab-rep').classList.toggle('active',t==='rep');
+  document.getElementById('pane-hab').classList.toggle('active',t==='hab');
+  document.getElementById('pane-rep').classList.toggle('active',t==='rep');
+  if(t==='rep') renderReporte();
 }
 
-function registrarMov(){
-  const hab=document.getElementById('hab_sel').value;
-  const tipo=document.getElementById('tipo_mov').value;
-  const fecha=document.getElementById('fecha_mov').value;
-  const nota=document.getElementById('nota_mov').value.trim();
-  const msg=document.getElementById('reg_msg');
-  if(!fecha){msg.innerHTML='<div class="alert alert-warn">⚠️ Selecciona una fecha.</div>';return}
-  const p=getPeriodo(), fDate=new Date(fecha+'T12:00:00');
-  if(fDate<p.ini||fDate>p.fin){msg.innerHTML='<div class="alert alert-warn">⚠️ La fecha debe estar entre '+p.iniStr+' y '+p.finStr+'</div>';return}
+function ultimoMov(hab){
   const store=getStore(), key=getMes();
-  if(!store[key])store[key]={};
-  if(!store[key][hab])store[key][hab]=[];
-  const movs=store[key][hab];
-  if(movs.length>0){
-    const last=[...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha)).pop();
-    if(last.tipo===tipo){msg.innerHTML='<div class="alert alert-warn">⚠️ El último movimiento ya fue una <strong>'+tipo+'</strong>. Registra el opuesto primero.</div>';return}
-  }
-  const id='m'+Date.now();
-  movs.push({tipo,fecha,nota,id});
-  saveStore(store);
-  const fmtFecha=fDate.toLocaleDateString('es-PE',{day:'numeric',month:'long'});
-  msg.innerHTML='<div class="alert alert-ok">✅ '+(tipo==='salida'?'Salida':'Regreso')+' registrada — Hab '+hab+' el '+fmtFecha+'</div>';
-  document.getElementById('tipo_mov').value=tipo==='salida'?'regreso':'salida';
-  document.getElementById('fecha_mov').value='';
-  document.getElementById('nota_mov').value='';
-  setTimeout(()=>{msg.innerHTML=''},4000);
+  const movs=(store[key]&&store[key][hab])||[];
+  if(movs.length===0) return null;
+  return [...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha)).pop();
 }
 
-function calcHab(movs,p){
-  if(!movs||movs.length===0) return {ausente:0,presente:p.dias,completo:true,pendiente:false,sinMovs:true,periodos:[]};
-  const sorted=[...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  let ausente=0,pendiente=false;
-  const periodos=[];
-  for(let i=0;i<sorted.length;i++){
-    const m=sorted[i];
-    if(m.tipo==='salida'){
-      const nx=sorted[i+1];
-      if(nx&&nx.tipo==='regreso'){
-        // Normal: days between salida and regreso exclusive both ends
-        const dS=new Date(m.fecha+'T12:00:00'), dR=new Date(nx.fecha+'T12:00:00');
-        const dias=Math.max(0,Math.round((dR-dS)/86400000)-1);
-        ausente+=dias;
-        periodos.push({sal:m.fecha,reg:nx.fecha,dias,
-          salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),
-          regStr:dR.toLocaleDateString('es-PE',{day:'numeric',month:'short'})});
-        i++;
-      } else {
-        // No regreso registered — count days from salida to end of period (fin del 15)
-        // Rule: absent = days between salida and fin (day 15 next month), exclusive of salida day
-        const dS=new Date(m.fecha+'T12:00:00');
-        const dFin=new Date(p.finISO+'T12:00:00');
-        const dias=Math.max(0,Math.round((dFin-dS)/86400000)-1);
-        ausente+=dias;
-        pendiente=true; // flag so next period knows they started absent
-        periodos.push({sal:m.fecha,reg:'fin_periodo',dias,
-          salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),
-          regStr:'día 15 (fin período)',
-          nota:'No regresó antes del día 15. El siguiente período inicia como ausente desde el día 15.'});
-      }
-    }
-  }
-  // presente = dias del periodo - ausente
-  const presente=Math.max(0,p.dias-ausente);
-  return {ausente,presente,completo:true,pendiente,sinMovs:false,periodos};
+function fdStr(fecha){
+  const d=new Date(fecha+'T12:00:00');
+  return d.toLocaleDateString('es-PE',{day:'numeric',month:'short'});
 }
 
-function renderSeguimiento(){
-  const store=getStore(), key=getMes(), data=store[key]||{};
-  const p=getPeriodo(), [y,mo]=getMes().split('-').map(Number);
-  const mesNombre=MONTHS[mo-1]+' '+y;
-  const results=ALL_HABS.map(h=>({h,r:calcHab(data[h],p)}));
-  const pendientes=results.filter(x=>x.r.pendiente).length;
-  const conMovs=results.filter(x=>!x.r.sinMovs).length;
+function renderHabitaciones(){
+  const store=getStore(), key=getMes(), p=getPeriodo();
+  const fueraList=ALL_HABS.filter(hab=>{const l=ultimoMov(hab); return l&&l.tipo==='salida';});
 
-  let html=`<div class="card">
-    <div class="card-title"><div class="ct-icon ct-gray">📋</div> Estado del período — ${mesNombre}</div>
-    <div class="g4" style="margin-bottom:0">
-      <div class="mc"><div class="mc-l">Días del período</div><div class="mc-v">${p.dias}</div><div class="mc-s">${p.iniStr} → ${p.finStr}</div></div>
-      <div class="mc"><div class="mc-l">Sin movimientos</div><div class="mc-v">${ALL_HABS.length-conMovs}</div><div class="mc-s">mes completo automático</div></div>
-      <div class="mc warn"><div class="mc-l">Con movimientos</div><div class="mc-v">${conMovs}</div></div>
-      <div class="mc ${pendientes>0?'err':'ok'}"><div class="mc-l">Regresosl pendientes</div><div class="mc-v">${pendientes}</div></div>
-    </div>
-  </div>`;
-
-  if(pendientes>0){
-    html+=`<div class="alert alert-warn no-print">⚠️ Hay ${pendientes} habitación(es) con salida sin regreso registrado. El reporte final no puede calcularse hasta que se registre el regreso.</div>`;
+  let html='';
+  if(fueraList.length>0){
+    html+='<div class="alert-fuera">🚪 '+fueraList.length+' habitación(es) están fuera ahora: '
+      +fueraList.map(h=>'<b onclick="abrirDesdeAviso('+h+')">'+h+'</b>').join(', ')+'</div>';
   }
 
   [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,habs])=>{
-    html+=`<div class="piso-section">
-      <div class="piso-label">🏢 Piso ${piso}</div>
-      <div class="hab-grid">`;
+    html+='<div class="piso-label">Piso '+piso+'</div><div class="hab-grid">';
     habs.forEach(hab=>{
-      const movs=(data[hab]||[]).sort((a,b)=>a.fecha.localeCompare(b.fecha));
-      const r=calcHab(movs,p);
-      const cls=r.pendiente?'pendiente':movs.length>0?'has-movs':'completo-sin-movs';
-      const badge=r.pendiente
-        ?'<span class="badge b-warn">⚠️ No regresó al 15</span>'
-        :r.sinMovs
-          ?'<span class="badge b-neutral">✓ Mes completo</span>'
-          :'<span class="badge b-ok">✅ Completo</span>';
-
-      html+=`<div class="hab-card ${cls}">
-        <div class="hab-header">
-          <div>
-            <div class="hab-num">Hab ${hab}</div>
-            <div style="margin-top:4px">${badge}</div>
-          </div>
-          <div class="hab-actions no-print">
-            <button class="btn btn-sm btn-salida" onclick="irARegistrar(${hab},'salida')" title="Registrar salida">🚪</button>
-            <button class="btn btn-sm btn-regreso" onclick="irARegistrar(${hab},'regreso')" title="Registrar regreso">🏠</button>
-          </div>
-        </div>`;
-
-      if(movs.length===0){
-        html+=`<div class="empty-hab">Sin movimientos — se contabilizarán ${p.dias} días presentes</div>`;
-      } else {
-        movs.forEach(m=>{
-          const fd=new Date(m.fecha+'T12:00:00');
-          const fdStr=fd.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'});
-          html+=`<div class="mov-item">
-            <div class="mov-ico ${m.tipo}">${m.tipo==='salida'?'🚪':'🏠'}</div>
-            <div class="mov-info">
-              <div class="mov-tipo">${m.tipo==='salida'?'Salida':'Regreso'}</div>
-              <div class="mov-fecha">${fdStr}${m.nota?'<span class="mov-nota"> — '+m.nota+'</span>':''}</div>
-            </div>
-            <div class="mov-btns no-print">
-              <button class="btn btn-sm btn-edit" onclick="abrirEditar('${hab}','${m.id}')" title="Editar">✏️</button>
-              <button class="btn btn-sm btn-del" onclick="eliminarMov('${hab}','${m.id}')" title="Eliminar">🗑</button>
-            </div>
-          </div>`;
-        });
-        if(r.ausente>0){
-          const nota = r.pendiente
-            ? `→ ${r.presente} días presente · ${r.ausente} días ausente <span style="color:var(--warn)">(contado hasta el día 15 — próximo período inicia como ausente)</span>`
-            : `→ ${r.presente} días presente · ${r.ausente} días ausente`;
-          html+=`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:12px;font-weight:600;color:var(--ok)">${nota}</div>`;
-        }
-      }
-      html+='</div>';
+      const last=ultimoMov(hab);
+      const fuera=last&&last.tipo==='salida';
+      const estadoClase=fuera?'fuera':'dentro';
+      html+='<button class="hab-card '+estadoClase+(openHab==hab?' open':'')+'" onclick="toggleHab('+hab+')">'
+        +'<div class="hab-top"><span class="hab-num">'+hab+'</span><span class="dot '+estadoClase+'"></span></div>'
+        +'<div class="hab-status'+(fuera?' fuera':'')+'">'+(last?(fuera?'Fuera desde '+fdStr(last.fecha):'En casa (volvió '+fdStr(last.fecha)+')'):'En casa')+'</div>'
+        +'</button>';
+      if(openHab==hab) html+=panelHTML(hab);
     });
-    html+='</div></div>';
+    html+='</div>';
   });
-
-  document.getElementById('seg_content').innerHTML=html;
+  document.getElementById('hab_content').innerHTML=html;
 }
 
-function irARegistrar(hab,tipo){
-  document.getElementById('hab_sel').value=hab;
-  document.getElementById('tipo_mov').value=tipo;
-  showTab('registrar');
-  setTimeout(()=>document.getElementById('fecha_mov').focus(),100);
+function abrirDesdeAviso(hab){
+  openHab=hab;
+  renderHabitaciones();
+  const el=document.getElementById('panel-msg-'+hab);
+  if(el) el.closest('.panel').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function maxFechaHoy(p){
+  const today=new Date().toISOString().split('T')[0];
+  return today<p.finISO?today:p.finISO;
+}
+
+function panelHTML(hab){
+  const store=getStore(), key=getMes(), p=getPeriodo();
+  const last=ultimoMov(hab);
+  const fuera=last&&last.tipo==='salida';
+  const tipo=fuera?'regreso':'salida';
+  const today=new Date().toISOString().split('T')[0];
+  const maxDate=maxFechaHoy(p);
+  const defDate=today<p.iniISO?p.iniISO:(today>maxDate?maxDate:today);
+  const movs=((store[key]&&store[key][hab])||[]).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const abierto=!!fechaAbierta[hab];
+
+  let html='<div class="panel">'
+    +'<div class="panel-title">Habitación '+hab+'</div>'
+    +'<div id="panel-msg-'+hab+'"></div>'
+    +'<button class="big-btn '+tipo+'" onclick="registrarRapido('+hab+',\''+tipo+'\')">'
+    +(fuera?'🏠 Regresó hoy':'🚪 Salió hoy')+'</button>'
+    +'<button class="link-btn" onclick="toggleFecha('+hab+')">'+(abierto?'Ocultar':'¿Fue otro día? Corregir la fecha')+'</button>';
+
+  if(abierto){
+    html+='<div style="margin-top:10px">'
+      +'<label>¿Qué día '+(fuera?'regresó':'salió')+'?</label>'
+      +'<input type="date" id="fecha-'+hab+'" value="'+defDate+'" min="'+p.iniISO+'" max="'+maxDate+'" style="margin-bottom:10px">'
+      +'<input type="text" id="nota-'+hab+'" placeholder="Nota opcional" style="margin-bottom:10px">'
+      +'<button class="big-btn '+tipo+'" style="margin-bottom:0" onclick="registrarConFecha('+hab+',\''+tipo+'\')">Registrar con esa fecha</button>'
+      +'</div>';
+  }
+
+
+  html+='<div class="mini-log"><div class="mini-title">Movimientos de este mes</div>';
+  if(movs.length===0){
+    html+='<div class="empty-txt">Todavía no hay movimientos registrados.</div>';
+  }else{
+    movs.forEach(m=>{
+      html+='<div class="mini-row">'
+        +'<span class="mini-tag '+m.tipo+'">'+(m.tipo==='salida'?'Salió':'Regresó')+'</span>'
+        +'<span class="mini-info"><span class="mini-fecha">'+fdStr(m.fecha)+'</span>'+(m.nota?' <span class="mini-nota">— '+m.nota.replace(/</g,'&lt;')+'</span>':'')+'</span>'
+        +'<button class="icon-btn" onclick="abrirEditar(\''+hab+'\',\''+m.id+'\')" aria-label="Corregir">✎</button>'
+        +'<button class="icon-btn" onclick="eliminarMov(\''+hab+'\',\''+m.id+'\')" aria-label="Eliminar">✕</button>'
+        +'</div>';
+    });
+  }
+  html+='</div></div>';
+  return html;
+}
+
+function toggleHab(hab){
+  openHab = (openHab==hab) ? null : hab;
+  renderHabitaciones();
+}
+
+function toggleFecha(hab){
+  fechaAbierta[hab]=!fechaAbierta[hab];
+  renderHabitaciones();
+}
+
+function registrarRapido(hab,tipo){
+  const p=getPeriodo();
+  const today=new Date().toISOString().split('T')[0];
+  const fecha=today<p.iniISO?p.iniISO:(today>p.finISO?p.finISO:today);
+  guardarMovimiento(hab,tipo,fecha,'');
+}
+
+function registrarConFecha(hab,tipo){
+  const fecha=document.getElementById('fecha-'+hab).value;
+  const nota=document.getElementById('nota-'+hab).value.trim();
+  const msgBox=document.getElementById('panel-msg-'+hab);
+  if(!fecha){ msgBox.innerHTML='<div class="msg-warn">Selecciona una fecha.</div>'; return; }
+  const hoy=new Date().toISOString().split('T')[0];
+  if(fecha>hoy){ msgBox.innerHTML='<div class="msg-warn">No puedes registrar una fecha futura.</div>'; return; }
+  guardarMovimiento(hab,tipo,fecha,nota);
+}
+
+function guardarMovimiento(hab,tipo,fecha,nota){
+  const store=getStore(), key=getMes();
+  if(!store[key]) store[key]={};
+  if(!store[key][hab]) store[key][hab]=[];
+  store[key][hab].push({tipo,fecha,nota,id:'m'+Date.now()});
+  saveStore(store);
+  fechaAbierta[hab]=false;
+  renderHabitaciones();
+  onDataChanged();
 }
 
 function eliminarMov(hab,id){
@@ -412,7 +355,8 @@ function eliminarMov(hab,id){
   const store=getStore(), key=getMes();
   if(store[key]&&store[key][hab]){
     store[key][hab]=store[key][hab].filter(m=>m.id!==id);
-    saveStore(store); renderSeguimiento();
+    saveStore(store); renderHabitaciones();
+    onDataChanged();
   }
 }
 
@@ -423,11 +367,11 @@ function abrirEditar(hab,id){
   if(!m) return;
   const p=getPeriodo();
   editState={hab,id};
-  document.getElementById('modal-title').textContent='Editar movimiento — Hab '+hab;
+  document.getElementById('modal-title').textContent='Corregir — Habitación '+hab;
   document.getElementById('edit-tipo').value=m.tipo;
   document.getElementById('edit-fecha').value=m.fecha;
   document.getElementById('edit-fecha').min=p.iniISO;
-  document.getElementById('edit-fecha').max=p.finISO;
+  document.getElementById('edit-fecha').max=maxFechaHoy(p);
   document.getElementById('edit-nota').value=m.nota||'';
   document.getElementById('modal-msg').innerHTML='';
   document.getElementById('modal-overlay').classList.add('show');
@@ -439,7 +383,9 @@ function guardarEdicion(){
   const fecha=document.getElementById('edit-fecha').value;
   const nota=document.getElementById('edit-nota').value.trim();
   const msg=document.getElementById('modal-msg');
-  if(!fecha){msg.innerHTML='<div class="alert alert-warn">Selecciona una fecha.</div>';return}
+  if(!fecha){ msg.innerHTML='<div class="msg-warn">Selecciona una fecha.</div>'; return; }
+  const hoy=new Date().toISOString().split('T')[0];
+  if(fecha>hoy){ msg.innerHTML='<div class="msg-warn">No puedes registrar una fecha futura.</div>'; return; }
   const store=getStore(), key=getMes();
   const movs=store[key]?.[editState.hab]||[];
   const idx=movs.findIndex(x=>x.id===editState.id);
@@ -447,12 +393,47 @@ function guardarEdicion(){
   movs[idx]={...movs[idx],tipo,fecha,nota};
   saveStore(store);
   closeModal();
-  renderSeguimiento();
+  renderHabitaciones();
+  onDataChanged();
+}
+
+function onDataChanged(){
+  if(typeof odPushCloud==='function') odPushCloud();
 }
 
 function closeModal(){
   document.getElementById('modal-overlay').classList.remove('show');
   editState=null;
+}
+
+function calcHab(movs,p){
+  if(!movs||movs.length===0) return {ausente:0,presente:p.dias,pendiente:false,sinMovs:true,periodos:[]};
+  const sorted=[...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  let ausente=0,pendiente=false;
+  const periodos=[];
+  for(let i=0;i<sorted.length;i++){
+    const m=sorted[i];
+    if(m.tipo==='salida'){
+      const nx=sorted[i+1];
+      if(nx&&nx.tipo==='regreso'){
+        const dS=new Date(m.fecha+'T12:00:00'), dR=new Date(nx.fecha+'T12:00:00');
+        const dias=Math.max(0,Math.round((dR-dS)/86400000)-1);
+        ausente+=dias;
+        periodos.push({salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),
+          regStr:dR.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),dias});
+        i++;
+      } else {
+        const dS=new Date(m.fecha+'T12:00:00');
+        const dFin=new Date(p.finISO+'T12:00:00');
+        const dias=Math.max(0,Math.round((dFin-dS)/86400000)-1);
+        ausente+=dias;
+        pendiente=true;
+        periodos.push({salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),regStr:'aún no regresa',dias});
+      }
+    }
+  }
+  const presente=Math.max(0,p.dias-ausente);
+  return {ausente,presente,pendiente,sinMovs:false,periodos};
 }
 
 function renderReporte(){
@@ -461,62 +442,44 @@ function renderReporte(){
   const mesNombre=MONTHS[mo-1]+' '+y;
   const results=ALL_HABS.map(h=>({h,r:calcHab(data[h],p)}));
   const pendientes=results.filter(x=>x.r.pendiente);
-  const totalPresente=results.filter(x=>!x.r.pendiente).reduce((s,x)=>s+(x.r.presente||0),0);
+  const totalPresente=results.reduce((s,x)=>s+(x.r.presente||0),0);
   const totalAusente=results.reduce((s,x)=>s+x.r.ausente,0);
 
-  let html=`<div class="card">
-    <div class="card-title"><div class="ct-icon ct-green">📊</div> Reporte final — ${mesNombre}</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">${p.iniStr} → ${p.finStr} · ${p.dias} días</div>`;
+  let html='<div class="card">'
+    +'<div style="font-size:15px;font-weight:700;margin-bottom:4px">Reporte — '+mesNombre+'</div>'
+    +'<div style="font-size:13px;color:var(--muted);margin-bottom:1rem">'+p.iniStr+' al '+p.finStr+' · '+p.dias+' días</div>';
 
   if(pendientes.length>0){
-    html+=`<div class="alert alert-warn">⚠️ <strong>${pendientes.length} habitación(es) no regresaron antes del día 15:</strong> ${pendientes.map(x=>'Hab '+x.h).join(', ')}. Sus días ausentes se contaron hasta el día 15. En el próximo período estas habitaciones inician como ausentes desde el día 15.</div>`;
-  } else {
-    html+=`<div class="alert alert-ok">✅ Todas las habitaciones están completas. El reporte está listo para usar en el sistema principal.</div>`;
+    html+='<div class="msg-warn">⚠ '+pendientes.length+' habitación(es) todavía no registran su regreso: '+pendientes.map(x=>x.h).join(', ')+'. Sus días se cuentan hasta hoy o hasta el fin del periodo.</div>';
+  }else{
+    html+='<div class="msg-ok">✓ Todas las habitaciones tienen su información completa. Este reporte ya se puede usar en el sistema principal.</div>';
   }
 
-  html+=`<div class="g4" style="margin-bottom:1.25rem">
-    <div class="mc"><div class="mc-l">Habitaciones</div><div class="mc-v">${ALL_HABS.length}</div></div>
-    <div class="mc ${pendientes.length>0?'warn':'ok'}"><div class="mc-l">No regresaron al 15</div><div class="mc-v">${pendientes.length}</div></div>
-    <div class="mc ok"><div class="mc-l">Total días presentes</div><div class="mc-v">${totalPresente}</div></div>
-    <div class="mc"><div class="mc-l">Total días ausentes</div><div class="mc-v">${totalAusente}</div></div>
-  </div>
-  <div style="overflow-x:auto;border-radius:var(--rs);border:1px solid var(--border)">
-  <table class="rt"><thead><tr>
-    <th>Habitación</th><th>Días presente</th><th>Días ausente</th><th>Estado</th><th>Detalle de ausencias</th>
-  </tr></thead><tbody>`;
+  html+='<div class="g3" style="margin-bottom:1.1rem">'
+    +'<div class="mc"><div class="mc-l">Días presentes (total)</div><div class="mc-v">'+totalPresente+'</div></div>'
+    +'<div class="mc"><div class="mc-l">Días ausentes (total)</div><div class="mc-v">'+totalAusente+'</div></div>'
+    +'<div class="mc '+(pendientes.length>0?'warn':'ok')+'"><div class="mc-l">Aún no regresan</div><div class="mc-v">'+pendientes.length+'</div></div>'
+    +'</div>';
+
+  html+='<div style="overflow-x:auto;border-radius:var(--rs);border:1px solid var(--border)"><table class="rt"><thead><tr>'
+    +'<th>Habitación</th><th>Días presente</th><th>Días ausente</th><th>Estado</th></tr></thead><tbody>';
 
   [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,habs])=>{
-    html+=`<tr class="piso-hdr"><td colspan="5">🏢 Piso ${piso}</td></tr>`;
+    html+='<tr class="piso-hdr"><td colspan="4">Piso '+piso+'</td></tr>';
     results.filter(x=>habs.includes(x.h)).forEach(({h,r})=>{
-      const presHtml=r.pendiente
-        ?`<strong style="font-size:17px">${r.presente}</strong> <span style="font-size:12px;color:var(--muted)">de ${p.dias}</span> <span class="badge b-warn" style="font-size:10px">no regresó al 15</span>`
-        :`<strong style="font-size:17px">${r.presente}</strong> <span style="font-size:12px;color:var(--muted)">de ${p.dias}</span>`;
-      const ausHtml=r.ausente>0?`<strong style="color:var(--err)">${r.ausente}</strong>`:'<span style="color:var(--hint)">—</span>';
-      const badge=r.pendiente?'<span class="badge b-warn">⚠️ No regresó al 15</span>'
-        :r.sinMovs?'<span class="badge b-neutral">Mes completo</span>'
-        :r.ausente>0?`<span class="badge b-err">${r.ausente}d fuera</span>`
-        :'<span class="badge b-ok">Sin ausencias</span>';
-      const det=r.periodos.length>0
-        ?r.periodos.map(pr=>`Sale ${pr.salStr} → Regresa ${pr.regStr}${pr.dias!==null?' ('+pr.dias+'d)':''}`).join('<br>')
-        :'<span style="color:var(--hint)">Presente todo el período</span>';
-      html+=`<tr>
-        <td><strong>Hab ${h}</strong></td>
-        <td>${presHtml}</td>
-        <td>${ausHtml}</td>
-        <td>${badge}</td>
-        <td style="font-size:12px;color:var(--muted)">${det}</td>
-      </tr>`;
+      const badge=r.pendiente?'<span class="badge b-warn">Aún fuera</span>'
+        :r.sinMovs?'<span class="badge b-neutral">Sin cambios</span>'
+        :'<span class="badge b-ok">Completo</span>';
+      html+='<tr><td><strong>'+h+'</strong></td><td>'+r.presente+' de '+p.dias+'</td>'
+        +'<td>'+(r.ausente>0?r.ausente:'—')+'</td><td>'+badge+'</td></tr>';
     });
   });
 
-  html+=`</tbody></table></div>
-  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px" class="no-print">
-    <div style="font-size:12px;color:var(--muted)">Copia los días presentes e ingrésalos en el sistema principal de gastos.</div>
-    <div style="display:flex;gap:8px">
-      <button class="btn btn-sm" onclick="copiarDias()">📋 Copiar días presentes</button>
-      <button class="btn btn-sm btn-ok" onclick="window.print()">🖨 Imprimir / PDF</button>
-    </div>
-  </div></div>`;
+  html+='</tbody></table></div>'
+    +'<div class="footer-actions no-print">'
+    +'<button class="btn" onclick="copiarDias()">📋 Copiar días presentes</button>'
+    +'<button class="btn btn-ok" onclick="window.print()">🖨 Imprimir / PDF</button>'
+    +'</div></div>';
 
   document.getElementById('rep_content').innerHTML=html;
   window._repResults=results.map(x=>({h:x.h,presente:x.r.presente,pendiente:x.r.pendiente}));
@@ -524,13 +487,282 @@ function renderReporte(){
 
 function copiarDias(){
   if(!window._repResults) return;
-  const lines=window._repResults.map(x=>'Hab '+x.h+': '+(x.pendiente?'PENDIENTE':x.presente+' días')).join('\n');
+  const lines=window._repResults.map(x=>'Hab '+x.h+': '+(x.pendiente?'aún fuera':x.presente+' días')).join('\n');
   if(navigator.clipboard){
-    navigator.clipboard.writeText(lines).then(()=>alert('✅ Copiado al portapapeles:\n\n'+lines)).catch(()=>prompt('Copia estos datos:',lines));
+    navigator.clipboard.writeText(lines).then(()=>alert('Copiado:\n\n'+lines)).catch(()=>prompt('Copia estos datos:',lines));
   } else { prompt('Copia estos datos:',lines); }
 }
 
+function buildMesOptions(){
+  const sel=document.getElementById('mes');
+  const actual=defaultMes();
+  const [cy,cm]=actual.split('-').map(Number);
+  const fmt=d=>d.toLocaleDateString('es-PE',{day:'numeric',month:'short'});
+  let html='';
+  for(let off=-11;off<=0;off++){
+    let mo=cm+off, y=cy;
+    while(mo>12){mo-=12;y+=1;}
+    while(mo<1){mo+=12;y-=1;}
+    const val=y+'-'+String(mo).padStart(2,'0');
+    const ini=new Date(y,mo-1,15);
+    const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
+    html+='<option value="'+val+'">'+fmt(ini)+' – '+fmt(fin)+'</option>';
+  }
+  sel.innerHTML=html;
+}
+
+function todayFileStamp(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function descargarBackupJSON(){
+  const data=getStore();
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='backup-ausencias-'+todayFileStamp()+'.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function restaurarBackupJSON(event){
+  const file=event.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const msg=document.getElementById('backup-msg');
+    try{
+      const parsed=JSON.parse(e.target.result);
+      if(typeof parsed!=='object'||Array.isArray(parsed)) throw new Error('formato inválido');
+      if(!confirm('Esto reemplazará todos los datos guardados en este navegador con los del archivo. ¿Continuar?')) return;
+      saveStore(parsed);
+      renderHabitaciones();
+      if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
+      msg.innerHTML='<div class="msg-ok">✓ Backup restaurado correctamente.</div>';
+    }catch(err){
+      msg.innerHTML='<div class="msg-warn">No se pudo leer el archivo. Asegúrate de subir un backup válido.</div>';
+    }
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+function descargarExcel(){
+  const store=getStore();
+  const rows=[['Mes','Piso','Habitación','Tipo','Fecha','Nota']];
+  Object.keys(store).sort().forEach(mesKey=>{
+    const [y,mo]=mesKey.split('-').map(Number);
+    const mesNombre=MONTHS[mo-1]+' '+y;
+    ALL_HABS.forEach(hab=>{
+      const movs=(store[mesKey][hab]||[]).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
+      const piso=HABS_P3.includes(hab)?3:4;
+      movs.forEach(m=>{
+        rows.push([mesNombre,piso,hab,m.tipo==='salida'?'Salida':'Regreso',m.fecha,m.nota||'']);
+      });
+    });
+  });
+  const resumenRows=[['Mes','Piso','Habitación','Días presente','Días ausente','Estado']];
+  Object.keys(store).sort().forEach(mesKey=>{
+    const [y,mo]=mesKey.split('-').map(Number);
+    const mesNombre=MONTHS[mo-1]+' '+y;
+    const ini=new Date(y,mo-1,15);
+    const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
+    const dias=Math.round((fin-ini)/86400000);
+    const finISO=fin.toISOString().split('T')[0];
+    const p={dias,finISO};
+    ALL_HABS.forEach(hab=>{
+      const r=calcHab(store[mesKey][hab],p);
+      const piso=HABS_P3.includes(hab)?3:4;
+      const estado=r.pendiente?'Aún fuera':(r.sinMovs?'Sin cambios':'Completo');
+      resumenRows.push([mesNombre,piso,hab,r.presente,r.ausente,estado]);
+    });
+  });
+
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resumenRows),'Resumen');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Historial completo');
+  XLSX.writeFile(wb,'control-ausencias-'+todayFileStamp()+'.xlsx');
+}
+
+buildMesOptions();
+document.getElementById('mes').value=defaultMes();
 onMesChange();
+
+// ═══════════════════════════════════════════════
+// ONEDRIVE SYNC — usa la misma app y el mismo GastosCasa.xlsx
+// (agrega una hoja "Ausencias" nueva; no toca las hojas de gastos-casa)
+// ═══════════════════════════════════════════════
+(function(){
+  var OD_ID  = 'c9c4478d-f8c5-4253-b1ed-c20fedaa5e9b';
+  var SCOPES = ['Files.ReadWrite.All','User.Read'];
+  var REDIRECT = 'https://walsedy.github.io/gastos-casa/';
+  var HEADERS_AUS = ['MesKey','Periodo','Piso','Habitación','Tipo','Fecha','Nota','ID'];
+  var odApp=null, odFileId=null, odConnected=false, odSyncing=false;
+
+  function badge(txt,bg,col){
+    var el=document.getElementById('od-badge');
+    if(el){el.textContent=txt;el.style.background=bg;el.style.color=col;}
+  }
+
+  window.odShowLogin=function(){ document.getElementById('od-modal').style.display='flex'; };
+
+  async function getToken(){
+    var acc=odApp.getActiveAccount()||(odApp.getAllAccounts()||[])[0];
+    if(!acc) return null;
+    try{var r=await odApp.acquireTokenSilent({scopes:SCOPES,account:acc});return r.accessToken;}
+    catch(e){try{var r=await odApp.acquireTokenPopup({scopes:SCOPES,redirectUri:REDIRECT});return r.accessToken;}catch(e2){return null;}}
+  }
+
+  async function odGraph(path,opts){
+    opts=opts||{};
+    var tok=await getToken(); if(!tok) throw new Error('sin token');
+    var res=await fetch('https://graph.microsoft.com/v1.0'+path,Object.assign({},opts,{headers:Object.assign({'Authorization':'Bearer '+tok,'Content-Type':'application/json'},opts.headers||{})}));
+    if(!res.ok) throw new Error(res.status);
+    var ct=res.headers.get('content-type')||'';
+    return ct.includes('json')?res.json():res;
+  }
+
+  function colLetter(n){
+    var s='';
+    while(n>0){ var r=(n-1)%26; s=String.fromCharCode(65+r)+s; n=Math.floor((n-1)/26); }
+    return s;
+  }
+
+  async function ensureFile(){
+    try{
+      var r=await odGraph("/me/drive/root:/GastosCasa:/children?$filter=name eq 'GastosCasa.xlsx'&$select=id,name").catch(function(){return {value:[]};});
+      if(r.value&&r.value.length>0){ odFileId=r.value[0].id; await ensureAusenciasSheet(); return; }
+      badge('⏳ Creando archivo...','#eff6ff','#1d4ed8');
+      var tok=await getToken();
+      try{ await odGraph('/me/drive/root/children',{method:'POST',body:JSON.stringify({name:'GastosCasa',folder:{},'@microsoft.graph.conflictBehavior':'ignore'})}); }catch(e){}
+      await new Promise(function(res){setTimeout(res,1500);});
+      var wb=new ExcelJS.Workbook();
+      wb.addWorksheet('Ausencias').addRow(HEADERS_AUS);
+      var buf=await wb.xlsx.writeBuffer();
+      var cr=await fetch('https://graph.microsoft.com/v1.0/me/drive/root:/GastosCasa/GastosCasa.xlsx:/content',{
+        method:'PUT',
+        headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'},
+        body:buf
+      });
+      var crData=await cr.json();
+      odFileId=crData.id;
+      await new Promise(function(res){setTimeout(res,2000);});
+    }catch(e){console.warn('ensureFile',e);}
+  }
+
+  async function ensureAusenciasSheet(){
+    try{
+      var sheets=await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets?$select=name');
+      var names=(sheets.value||[]).map(function(s){return s.name;});
+      if(names.indexOf('Ausencias')===-1){
+        await odGraph('/me/drive/items/'+odFileId+'/workbook/worksheets',{method:'POST',body:JSON.stringify({name:'Ausencias'})});
+        await odGraph('/me/drive/items/'+odFileId+"/workbook/worksheets/Ausencias/range(address='A1:H1')",{method:'PATCH',body:JSON.stringify({values:[HEADERS_AUS]})});
+      }
+    }catch(e){console.warn('ensureAusenciasSheet',e);}
+  }
+
+  function storeToRows(){
+    var store=getStore();
+    var rows=[HEADERS_AUS];
+    Object.keys(store).sort().forEach(function(mesKey){
+      var mo=parseInt(mesKey.split('-')[1],10), y=mesKey.split('-')[0];
+      var periodo=(MONTHS[mo-1]||'')+' '+y;
+      ALL_HABS.forEach(function(hab){
+        var movs=(store[mesKey][hab]||[]).slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
+        var piso=HABS_P3.indexOf(hab)!==-1?3:4;
+        movs.forEach(function(m){
+          rows.push([mesKey,periodo,piso,hab,m.tipo,m.fecha,m.nota||'',m.id]);
+        });
+      });
+    });
+    return rows;
+  }
+
+  function rowsToStore(rows){
+    var store={};
+    rows.slice(1).forEach(function(r){
+      if(!r||!r[0]) return;
+      var mesKey=String(r[0]), hab=String(r[3]), tipo=String(r[4]), fecha=String(r[5]), nota=r[6]||'', id=r[7]||('m'+Math.random());
+      if(!store[mesKey]) store[mesKey]={};
+      if(!store[mesKey][hab]) store[mesKey][hab]=[];
+      store[mesKey][hab].push({tipo:tipo,fecha:fecha,nota:nota,id:id});
+    });
+    return store;
+  }
+
+  window.odPushCloud=async function(){
+    if(!odConnected||!odFileId||odSyncing) return;
+    odSyncing=true;
+    badge('⏳ Guardando...','#eff6ff','#1d4ed8');
+    try{
+      await ensureAusenciasSheet();
+      var vals=storeToRows();
+      var cols=colLetter(HEADERS_AUS.length);
+      for(var i=0;i<vals.length;i+=20){
+        var chunk=vals.slice(i,Math.min(i+20,vals.length));
+        var startRow=i+1, endRow=startRow+chunk.length-1;
+        await odGraph('/me/drive/items/'+odFileId+"/workbook/worksheets/Ausencias/range(address='A"+startRow+':'+cols+endRow+"')",{method:'PATCH',body:JSON.stringify({values:chunk})});
+      }
+      var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+      badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
+    }catch(e){ console.warn('odPushCloud',e); badge('⚠️ Error al guardar','#fffbeb','#b45309'); }
+    odSyncing=false;
+  };
+
+  window.odSync=async function(){
+    if(!odConnected||!odFileId) return;
+    badge('⏳ Sincronizando...','#eff6ff','#1d4ed8');
+    try{
+      var d=await odGraph('/me/drive/items/'+odFileId+"/workbook/worksheets/Ausencias/usedRange?$select=values");
+      var rows=d.values||[];
+      if(rows.length>1){
+        saveStore(rowsToStore(rows));
+        openHab=null;
+        renderHabitaciones();
+        if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
+      }
+      var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+      badge('☁️ Al día '+ts,'#f0fdf4','#15803d');
+    }catch(e){ console.warn('odSync',e); badge('⚠️ Error sync','#fffbeb','#b45309'); }
+  };
+
+  async function afterLogin(){
+    odConnected=true;
+    badge('⏳ Conectando...','#eff6ff','#1d4ed8');
+    document.getElementById('od-sync-btn').style.display='inline-block';
+    await ensureFile();
+    await window.odSync();
+    // Si la nube está vacía pero hay datos locales, sube lo local como punto de partida
+    var local=getStore();
+    if(Object.keys(local).length>0) await window.odPushCloud();
+  }
+
+  window.addEventListener('load', async function(){
+    try{
+      odApp=new msal.PublicClientApplication({
+        auth:{ clientId:OD_ID, authority:'https://login.microsoftonline.com/consumers', redirectUri:REDIRECT },
+        cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:true }
+      });
+      await odApp.initialize();
+      var accs=odApp.getAllAccounts();
+      if(accs&&accs.length>0){
+        odApp.setActiveAccount(accs[0]);
+        await afterLogin();
+        return;
+      }
+      badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b');
+      document.getElementById('od-btn-login').addEventListener('click',async function(){
+        document.getElementById('od-modal').style.display='none';
+        badge('⏳ Conectando...','#eff6ff','#1d4ed8');
+        try{
+          await odApp.loginPopup({scopes:SCOPES, redirectUri:REDIRECT, prompt:'select_account'});
+          await afterLogin();
+        }catch(e){ console.warn('login popup error',e); badge('☁️ Conectar OneDrive','#f5f4f0','#6b6b6b'); }
+      });
+    }catch(e){ console.warn('OD boot',e); }
+  });
+})();
 </script>
 </body>
 </html>
