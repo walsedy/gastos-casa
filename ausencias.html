@@ -592,19 +592,22 @@ function descargarExcel(){
 }
 
 async function borrarTodo(){
-  if(!confirm('⚠️ Esto borrará TODOS los movimientos registrados (todos los meses y habitaciones), en este navegador.\n\n¿Seguro que quieres continuar?')) return;
+  if(!confirm('⚠️ Esto borrará TODOS los movimientos registrados (todos los meses y habitaciones), en este navegador y en OneDrive si está conectado.\n\n¿Seguro que quieres continuar?')) return;
   if(!confirm('🔴 Confirmación final: los datos se van a eliminar y no se pueden recuperar (salvo que tengas un backup descargado).\n\n¿Borrar todo de todas formas?')) return;
   saveStore({});
   openHab=null;
   fechaAbierta={};
-  renderHabitaciones();
-  if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
   const msg=document.getElementById('backup-msg');
   if(typeof odPushCloud==='function'){
     msg.innerHTML='<div class="msg-warn">Borrando también en OneDrive...</div>';
     await odPushCloud();
+    await odSync();
+    msg.innerHTML='<div class="msg-ok">✓ Todo borrado, incluida la copia en OneDrive.</div>';
+  } else {
+    msg.innerHTML='<div class="msg-ok">✓ Todo borrado en este navegador.</div>';
   }
-  msg.innerHTML='<div class="msg-ok">✓ Todo borrado. Puedes empezar de cero.</div>';
+  renderHabitaciones();
+  if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
 }
 
 buildMesOptions();
@@ -724,6 +727,7 @@ onMesChange();
     badge('⏳ Guardando...','#eff6ff','#1d4ed8');
     try{
       await ensureAusenciasSheet();
+      try{ await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A1:H100000')/clear",{method:'POST',body:JSON.stringify({applyTo:'Contents'})}); }catch(e){ console.warn('clear previo falló',e); }
       var vals=storeToRows();
       var cols=colLetter(HEADERS_AUS.length);
       for(var i=0;i<vals.length;i+=20){
