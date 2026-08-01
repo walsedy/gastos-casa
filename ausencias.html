@@ -146,11 +146,11 @@ label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bot
 
   <div class="tabs">
     <button class="tab active" id="tab-hab" onclick="showTab('hab')">🏢 Habitaciones</button>
-    <button class="tab" id="tab-rep" onclick="showTab('rep')">📊 Reporte del mes</button>
+    <button class="tab" id="tab-rep" onclick="showTab('rep')">📊 Reporte del periodo</button>
   </div>
 
   <div id="pane-hab" class="pane active">
-    <div class="hint">Toca una habitación para registrar su salida o su regreso. Las que no tocas se cuentan como presentes todo el mes.</div>
+    <div class="hint">Toca una habitación para registrar su salida o su regreso con la fecha real. El reporte se encarga de repartir los días en el periodo del 15 al 14 que corresponda.</div>
     <div id="hab_content"></div>
   </div>
 
@@ -179,36 +179,136 @@ label{font-size:11px;color:var(--muted);font-weight:600;display:block;margin-bot
 const HABS_P3=[301,302,304,305,306], HABS_P4=[401,402,403,404,405,406];
 const ALL_HABS=[...HABS_P3,...HABS_P4];
 const MONTHS=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const STORE='ausencias_v2';
+const STORE='ausencias_v3';
+const STORE_OLD='ausencias_v2';
 let editState=null;
 let openHab=null;
 let fechaAbierta={};
 
-function getStore(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch(e){return {}}}
-function saveStore(d){localStorage.setItem(STORE,JSON.stringify(d))}
-function getMes(){return document.getElementById('mes').value}
+/* ══════════════════════════════════════════════════════════
+   FECHAS — todo se maneja como número de día entero para
+   evitar por completo los problemas de zona horaria.
+   ══════════════════════════════════════════════════════════ */
+function isISO(s){ return typeof s==='string' && /^\d{4}-\d{2}-\d{2}$/.test(s); }
+
+function isoLocal(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function hoyISO(){ return isoLocal(new Date()); }
+
+/* Convierte a YYYY-MM-DD lo que venga: ISO, Date, serial de Excel
+   (46206 → 2026-07-03) o texto regional dd/mm/aaaa. null si es basura. */
+function toISO(v){
+  if(v===null||v===undefined) return null;
+  if(v instanceof Date) return isNaN(v)?null:isoLocal(v);
+  var s=String(v).trim();
+  if(!s) return null;
+  if(isISO(s)) return s;
+  var m=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if(m){
+    var d=parseInt(m[1],10), mo=parseInt(m[2],10);
+    if(d>12&&mo<=12){ /* dd/mm */ } else if(mo>12&&d<=12){ var t=d; d=mo; mo=t; }
+    if(d>=1&&d<=31&&mo>=1&&mo<=12) return m[3]+'-'+String(mo).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    return null;
+  }
+  var n=Number(s);
+  if(!isNaN(n)&&n>20000&&n<80000){
+    var dd=new Date(Date.UTC(1899,11,30)+Math.round(n)*86400000);
+    return dd.toISOString().split('T')[0];
+  }
+  return null;
+}
+
+function dnum(iso){ var p=iso.split('-'); return Date.UTC(+p[0],+p[1]-1,+p[2])/86400000; }
+function isoFromNum(n){ return new Date(n*86400000).toISOString().split('T')[0]; }
+function fdStr(iso){ var p=iso.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('es-PE',{day:'numeric',month:'short'}); }
+function fdStrY(iso){ var p=iso.split('-'); return new Date(+p[0],+p[1]-1,+p[2]).toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'}); }
+
+/* A qué periodo 15→14 pertenece una fecha */
+function mesKeyDe(iso){
+  var p=iso.split('-'), y=+p[0], mo=+p[1], d=+p[2];
+  if(d<15){ mo-=1; if(mo<1){mo=12;y-=1;} }
+  return y+'-'+String(mo).padStart(2,'0');
+}
+function etiquetaPeriodo(mesKey){
+  var y=+mesKey.split('-')[0], mo=+mesKey.split('-')[1];
+  var ini=new Date(y,mo-1,15);
+  var finEx=(mo===12)?new Date(y+1,0,15):new Date(y,mo,15);
+  var fin=new Date(finEx.getTime()-86400000);
+  var f=function(d){return d.toLocaleDateString('es-PE',{day:'numeric',month:'short'});};
+  return f(ini)+' al '+f(fin);
+}
+
+/* ══════════════════════════════════════════════════════════
+   ALMACENAMIENTO — línea de tiempo continua por habitación.
+   { "302": [ {id,tipo,fecha,nota}, ... ] }
+   Ya no hay buckets por mes: el mes solo existe en el reporte.
+   ══════════════════════════════════════════════════════════ */
+function migrarSiHaceFalta(){
+  if(localStorage.getItem(STORE)) return;
+  var viejo=null;
+  try{ viejo=JSON.parse(localStorage.getItem(STORE_OLD)||'null'); }catch(e){ viejo=null; }
+  if(!viejo||typeof viejo!=='object') return;
+  localStorage.setItem(STORE,JSON.stringify(aplanar(viejo)));
+}
+
+/* Convierte el formato viejo {mesKey:{hab:[movs]}} al nuevo {hab:[movs]},
+   normalizando seriales de Excel y descartando duplicados. */
+function aplanar(viejo){
+  var flat={};
+  Object.keys(viejo).forEach(function(mesKey){
+    var buckets=viejo[mesKey];
+    if(!buckets||typeof buckets!=='object') return;
+    Object.keys(buckets).forEach(function(hab){
+      (buckets[hab]||[]).forEach(function(m){
+        var f=toISO(m&&m.fecha); if(!f) return;
+        var tipo=(m.tipo==='salida'||m.tipo==='regreso')?m.tipo:null; if(!tipo) return;
+        if(!flat[hab]) flat[hab]=[];
+        if(flat[hab].some(function(x){return x.tipo===tipo&&x.fecha===f;})) return;
+        flat[hab].push({id:m.id||nuevoId(),tipo:tipo,fecha:f,nota:m.nota||''});
+      });
+    });
+  });
+  return flat;
+}
+function esFormatoViejo(obj){
+  var k=Object.keys(obj)[0];
+  return k!==undefined && /^\d{4}-\d{2}$/.test(k);
+}
+function nuevoId(){ return 'm'+Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+function getStore(){ try{ return JSON.parse(localStorage.getItem(STORE)||'{}'); }catch(e){ return {}; } }
+function saveStore(d){ localStorage.setItem(STORE,JSON.stringify(d)); }
+function getMes(){ return document.getElementById('mes').value; }
+
+function movsDe(hab){
+  var s=getStore()[hab]||[];
+  return s.filter(function(m){return isISO(m.fecha);})
+          .slice()
+          .sort(function(a,b){
+            if(a.fecha!==b.fecha) return a.fecha.localeCompare(b.fecha);
+            return a.tipo===b.tipo?0:(a.tipo==='salida'?-1:1);
+          });
+}
 
 function getPeriodo(){
-  const m=getMes(), [y,mo]=m.split('-').map(Number);
-  const ini=new Date(y,mo-1,15);
-  const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
-  const dias=Math.round((fin-ini)/86400000);
-  const fmt=d=>d.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'});
-  const iniISO=ini.toISOString().split('T')[0];
-  const finISO=fin.toISOString().split('T')[0];
-  return {ini,fin,dias,iniStr:fmt(ini),finStr:fmt(fin),iniISO,finISO};
+  var m=getMes(), y=+m.split('-')[0], mo=+m.split('-')[1];
+  var iniISO=y+'-'+String(mo).padStart(2,'0')+'-15';
+  var ny=(mo===12)?y+1:y, nmo=(mo===12)?1:mo+1;
+  var finExISO=ny+'-'+String(nmo).padStart(2,'0')+'-15';
+  var iniN=dnum(iniISO), finN=dnum(finExISO)-1;
+  var finISO=isoFromNum(finN);
+  return {iniISO:iniISO,finISO:finISO,iniN:iniN,finN:finN,dias:finN-iniN+1,
+          iniStr:fdStrY(iniISO),finStr:fdStrY(finISO)};
 }
 
 function defaultMes(){
-  const now=new Date();
-  let y=now.getFullYear(), m=now.getMonth()+1;
-  if(now.getDate()<15){ m-=1; if(m<1){m=12;y-=1;} }
-  return y+'-'+String(m).padStart(2,'0');
+  return mesKeyDe(hoyISO());
 }
 
 function onMesChange(){
   const p=getPeriodo();
-  document.getElementById('periodo-info').innerHTML='Registrando del <b>'+p.iniStr+'</b> al <b>'+p.finStr+'</b> ('+p.dias+' días)';
+  document.getElementById('periodo-info').innerHTML='Reportando del <b>'+p.iniStr+'</b> al <b>'+p.finStr+'</b> ('+p.dias+' días)';
   openHab=null;
   renderHabitaciones();
   if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
@@ -222,21 +322,67 @@ function showTab(t){
   if(t==='rep') renderReporte();
 }
 
-function ultimoMov(hab){
-  const store=getStore(), key=getMes();
-  const movs=(store[key]&&store[key][hab])||[];
-  if(movs.length===0) return null;
-  return [...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha)).pop();
+/* ══════════════════════════════════════════════════════════
+   TRAMOS DE AUSENCIA
+   Un tramo va de una salida a su regreso. Los días ausentes
+   son los ESTRICTAMENTE intermedios: el día de salida y el
+   día de regreso cuentan como presentes.
+   ══════════════════════════════════════════════════════════ */
+function tramosDe(hab){
+  var list=movsDe(hab), abierta=null, tramos=[];
+  list.forEach(function(m){
+    if(m.tipo==='salida'){
+      if(abierta===null) abierta=m;
+    }else{
+      if(abierta!==null){ tramos.push({salida:abierta.fecha,regreso:m.fecha}); abierta=null; }
+    }
+  });
+  if(abierta!==null) tramos.push({salida:abierta.fecha,regreso:null});
+  return tramos;
 }
 
-function fdStr(fecha){
-  const d=new Date(fecha+'T12:00:00');
-  return d.toLocaleDateString('es-PE',{day:'numeric',month:'short'});
+/* Estado actual (línea de tiempo completa, no depende del periodo) */
+function estadoActual(hab){
+  var t=tramosDe(hab);
+  if(t.length===0) return {fuera:false,desde:null,ultimo:null};
+  var ult=t[t.length-1];
+  if(ult.regreso===null && dnum(ult.salida)<=dnum(hoyISO())) return {fuera:true,desde:ult.salida,ultimo:ult};
+  return {fuera:false,desde:null,ultimo:ult};
 }
 
+/* Cálculo del periodo: recorta cada tramo contra [iniN, finN] */
+function calcHab(hab,p){
+  var hoyN=dnum(hoyISO());
+  var ausente=0, pendiente=false, detalle=[], arrastre=false;
+  tramosDe(hab).forEach(function(t){
+    var sN=dnum(t.salida);
+    var lo=sN+1, hi, abierto=(t.regreso===null);
+    if(abierto){ hi=Math.min(hoyN,p.finN); }
+    else { hi=dnum(t.regreso)-1; }
+    var a=Math.max(lo,p.iniN), b=Math.min(hi,p.finN);
+    var dias=Math.max(0,b-a+1);
+    if(dias>0||(abierto&&sN<=p.finN&&hi>=p.iniN)){
+      if(dias>0){
+        ausente+=dias;
+        detalle.push({salida:t.salida,regreso:t.regreso,dias:dias,
+                      recortado:(sN+1<p.iniN)||(!abierto&&dnum(t.regreso)-1>p.finN)});
+        if(sN<p.iniN) arrastre=true;
+      }
+      if(abierto&&sN<=p.finN) pendiente=true;
+    }
+  });
+  var hayMov=movsDe(hab).some(function(m){var n=dnum(m.fecha);return n>=p.iniN&&n<=p.finN;});
+  var presente=Math.max(0,p.dias-ausente);
+  return {ausente:ausente,presente:presente,pendiente:pendiente,
+          sinMovs:(ausente===0&&!hayMov&&!pendiente),detalle:detalle,arrastre:arrastre};
+}
+
+/* ══════════════════════════════════════════════════════════
+   PESTAÑA HABITACIONES
+   ══════════════════════════════════════════════════════════ */
 function renderHabitaciones(){
-  const store=getStore(), key=getMes(), p=getPeriodo();
-  const fueraList=ALL_HABS.filter(hab=>{const l=ultimoMov(hab); return l&&l.tipo==='salida';});
+  const p=getPeriodo();
+  const fueraList=ALL_HABS.filter(function(hab){ return estadoActual(hab).fuera; });
 
   let html='';
   if(fueraList.length>0){
@@ -247,12 +393,14 @@ function renderHabitaciones(){
   [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,habs])=>{
     html+='<div class="piso-label">Piso '+piso+'</div><div class="hab-grid">';
     habs.forEach(hab=>{
-      const last=ultimoMov(hab);
-      const fuera=last&&last.tipo==='salida';
-      const estadoClase=fuera?'fuera':'dentro';
+      const st=estadoActual(hab);
+      const estadoClase=st.fuera?'fuera':'dentro';
+      let txt='En casa';
+      if(st.fuera) txt='Fuera desde '+fdStr(st.desde);
+      else if(st.ultimo&&st.ultimo.regreso) txt='En casa (volvió '+fdStr(st.ultimo.regreso)+')';
       html+='<button class="hab-card '+estadoClase+(openHab==hab?' open':'')+'" onclick="toggleHab('+hab+')">'
         +'<div class="hab-top"><span class="hab-num">'+hab+'</span><span class="dot '+estadoClase+'"></span></div>'
-        +'<div class="hab-status'+(fuera?' fuera':'')+'">'+(last?(fuera?'Fuera desde '+fdStr(last.fecha):'En casa (volvió '+fdStr(last.fecha)+')'):'En casa')+'</div>'
+        +'<div class="hab-status'+(st.fuera?' fuera':'')+'">'+txt+'</div>'
         +'</button>';
       if(openHab==hab) html+=panelHTML(hab);
     });
@@ -268,47 +416,43 @@ function abrirDesdeAviso(hab){
   if(el) el.closest('.panel').scrollIntoView({behavior:'smooth',block:'center'});
 }
 
-function maxFechaHoy(p){
-  const today=new Date().toISOString().split('T')[0];
-  return today<p.finISO?today:p.finISO;
-}
-
 function panelHTML(hab){
-  const store=getStore(), key=getMes(), p=getPeriodo();
-  const last=ultimoMov(hab);
-  const fuera=last&&last.tipo==='salida';
-  const tipo=fuera?'regreso':'salida';
-  const today=new Date().toISOString().split('T')[0];
-  const maxDate=maxFechaHoy(p);
-  const defDate=today<p.iniISO?p.iniISO:(today>maxDate?maxDate:today);
-  const movs=((store[key]&&store[key][hab])||[]).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const p=getPeriodo();
+  const st=estadoActual(hab);
+  const tipo=st.fuera?'regreso':'salida';
+  const hoy=hoyISO();
   const abierto=!!fechaAbierta[hab];
+  const movs=movsDe(hab).filter(m=>{var n=dnum(m.fecha);return n>=p.iniN&&n<=p.finN;}).reverse();
 
   let html='<div class="panel">'
     +'<div class="panel-title">Habitación '+hab+'</div>'
     +'<div id="panel-msg-'+hab+'"></div>'
     +'<button class="big-btn '+tipo+'" onclick="registrarRapido('+hab+',\''+tipo+'\')">'
-    +(fuera?'🏠 Regresó hoy':'🚪 Salió hoy')+'</button>'
-    +'<button class="link-btn" onclick="toggleFecha('+hab+')">'+(abierto?'Ocultar':'¿Fue otro día? Corregir la fecha')+'</button>';
+    +(st.fuera?'🏠 Regresó hoy':'🚪 Salió hoy')+'</button>'
+    +'<button class="link-btn" onclick="toggleFecha('+hab+')">'+(abierto?'Ocultar':'¿Fue otro día? Elegir la fecha')+'</button>';
 
   if(abierto){
     html+='<div style="margin-top:10px">'
-      +'<label>¿Qué día '+(fuera?'regresó':'salió')+'?</label>'
-      +'<input type="date" id="fecha-'+hab+'" value="'+defDate+'" min="'+p.iniISO+'" max="'+maxDate+'" style="margin-bottom:10px">'
+      +'<label>¿Qué día '+(st.fuera?'regresó':'salió')+'?</label>'
+      +'<input type="date" id="fecha-'+hab+'" value="'+hoy+'" max="'+hoy+'" style="margin-bottom:10px">'
       +'<input type="text" id="nota-'+hab+'" placeholder="Nota opcional" style="margin-bottom:10px">'
       +'<button class="big-btn '+tipo+'" style="margin-bottom:0" onclick="registrarConFecha('+hab+',\''+tipo+'\')">Registrar con esa fecha</button>'
+      +'<div style="font-size:11.5px;color:var(--muted);margin-top:8px">Puedes registrar cualquier fecha pasada; el reporte la ubica sola en el periodo que le corresponde.</div>'
       +'</div>';
   }
 
+  if(st.fuera && dnum(st.desde)<p.iniN){
+    html+='<div class="msg-warn" style="margin-top:10px">Salió el '+fdStrY(st.desde)+', antes de este periodo, y aún no registra su regreso.</div>';
+  }
 
-  html+='<div class="mini-log"><div class="mini-title">Movimientos de este mes</div>';
+  html+='<div class="mini-log"><div class="mini-title">Movimientos del periodo ('+etiquetaPeriodo(getMes())+')</div>';
   if(movs.length===0){
-    html+='<div class="empty-txt">Todavía no hay movimientos registrados.</div>';
+    html+='<div class="empty-txt">Sin movimientos en este periodo.</div>';
   }else{
     movs.forEach(m=>{
       html+='<div class="mini-row">'
         +'<span class="mini-tag '+m.tipo+'">'+(m.tipo==='salida'?'Salió':'Regresó')+'</span>'
-        +'<span class="mini-info"><span class="mini-fecha">'+fdStr(m.fecha)+'</span>'+(m.nota?' <span class="mini-nota">— '+m.nota.replace(/</g,'&lt;')+'</span>':'')+'</span>'
+        +'<span class="mini-info"><span class="mini-fecha">'+fdStr(m.fecha)+'</span>'+(m.nota?' <span class="mini-nota">— '+String(m.nota).replace(/</g,'&lt;')+'</span>':'')+'</span>'
         +'<button class="icon-btn" onclick="abrirEditar(\''+hab+'\',\''+m.id+'\')" aria-label="Corregir">✎</button>'
         +'<button class="icon-btn" onclick="eliminarMov(\''+hab+'\',\''+m.id+'\')" aria-label="Eliminar">✕</button>'
         +'</div>';
@@ -318,66 +462,67 @@ function panelHTML(hab){
   return html;
 }
 
-function toggleHab(hab){
-  openHab = (openHab==hab) ? null : hab;
-  renderHabitaciones();
-}
+function toggleHab(hab){ openHab=(openHab==hab)?null:hab; renderHabitaciones(); }
+function toggleFecha(hab){ fechaAbierta[hab]=!fechaAbierta[hab]; renderHabitaciones(); }
 
-function toggleFecha(hab){
-  fechaAbierta[hab]=!fechaAbierta[hab];
-  renderHabitaciones();
-}
-
-function registrarRapido(hab,tipo){
-  const p=getPeriodo();
-  const today=new Date().toISOString().split('T')[0];
-  const fecha=today<p.iniISO?p.iniISO:(today>p.finISO?p.finISO:today);
-  guardarMovimiento(hab,tipo,fecha,'');
-}
+function registrarRapido(hab,tipo){ guardarMovimiento(hab,tipo,hoyISO(),''); }
 
 function registrarConFecha(hab,tipo){
   const fecha=document.getElementById('fecha-'+hab).value;
   const nota=document.getElementById('nota-'+hab).value.trim();
   const msgBox=document.getElementById('panel-msg-'+hab);
-  if(!fecha){ msgBox.innerHTML='<div class="msg-warn">Selecciona una fecha.</div>'; return; }
-  const hoy=new Date().toISOString().split('T')[0];
-  if(fecha>hoy){ msgBox.innerHTML='<div class="msg-warn">No puedes registrar una fecha futura.</div>'; return; }
+  if(!isISO(fecha)){ msgBox.innerHTML='<div class="msg-warn">Selecciona una fecha válida.</div>'; return; }
+  if(fecha>hoyISO()){ msgBox.innerHTML='<div class="msg-warn">No puedes registrar una fecha futura.</div>'; return; }
   guardarMovimiento(hab,tipo,fecha,nota);
 }
 
 function guardarMovimiento(hab,tipo,fecha,nota){
-  const store=getStore(), key=getMes();
-  if(!store[key]) store[key]={};
-  if(!store[key][hab]) store[key][hab]=[];
-  store[key][hab].push({tipo,fecha,nota,id:'m'+Date.now()});
+  const store=getStore();
+  const k=String(hab);
+  if(!store[k]) store[k]=[];
+  if(store[k].some(m=>m.tipo===tipo&&m.fecha===fecha)){
+    avisarPanel(hab,'<div class="msg-warn">Ese movimiento ya estaba registrado ('+fdStr(fecha)+').</div>');
+    return;
+  }
+  store[k].push({id:nuevoId(),tipo:tipo,fecha:fecha,nota:nota||''});
   saveStore(store);
   fechaAbierta[hab]=false;
   renderHabitaciones();
+  avisoDePeriodo(hab,fecha);
   onDataChanged();
+}
+
+/* Si la fecha registrada no cae en el periodo que está en pantalla, se avisa */
+function avisoDePeriodo(hab,fecha){
+  const k=mesKeyDe(fecha);
+  if(k===getMes()) return;
+  avisarPanel(hab,'<div class="msg-ok">Registrado el '+fdStrY(fecha)+'. Cuenta en el periodo '+etiquetaPeriodo(k)+'.</div>');
+}
+function avisarPanel(hab,html){
+  const el=document.getElementById('panel-msg-'+hab);
+  if(el) el.innerHTML=html;
 }
 
 function eliminarMov(hab,id){
   if(!confirm('¿Eliminar este movimiento?')) return;
-  const store=getStore(), key=getMes();
-  if(store[key]&&store[key][hab]){
-    store[key][hab]=store[key][hab].filter(m=>m.id!==id);
+  const store=getStore(), k=String(hab);
+  if(store[k]){
+    store[k]=store[k].filter(m=>m.id!==id);
     saveStore(store); renderHabitaciones();
+    if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
     onDataChanged();
   }
 }
 
 function abrirEditar(hab,id){
-  const store=getStore(), key=getMes();
-  const movs=store[key]?.[hab]||[];
-  const m=movs.find(x=>x.id===id);
+  const m=(getStore()[String(hab)]||[]).find(x=>x.id===id);
   if(!m) return;
-  const p=getPeriodo();
-  editState={hab,id};
+  editState={hab:String(hab),id:id};
   document.getElementById('modal-title').textContent='Corregir — Habitación '+hab;
   document.getElementById('edit-tipo').value=m.tipo;
   document.getElementById('edit-fecha').value=m.fecha;
-  document.getElementById('edit-fecha').min=p.iniISO;
-  document.getElementById('edit-fecha').max=maxFechaHoy(p);
+  document.getElementById('edit-fecha').removeAttribute('min');
+  document.getElementById('edit-fecha').max=hoyISO();
   document.getElementById('edit-nota').value=m.nota||'';
   document.getElementById('modal-msg').innerHTML='';
   document.getElementById('modal-overlay').classList.add('show');
@@ -389,66 +534,36 @@ function guardarEdicion(){
   const fecha=document.getElementById('edit-fecha').value;
   const nota=document.getElementById('edit-nota').value.trim();
   const msg=document.getElementById('modal-msg');
-  if(!fecha){ msg.innerHTML='<div class="msg-warn">Selecciona una fecha.</div>'; return; }
-  const hoy=new Date().toISOString().split('T')[0];
-  if(fecha>hoy){ msg.innerHTML='<div class="msg-warn">No puedes registrar una fecha futura.</div>'; return; }
-  const store=getStore(), key=getMes();
-  const movs=store[key]?.[editState.hab]||[];
+  if(!isISO(fecha)){ msg.innerHTML='<div class="msg-warn">Selecciona una fecha válida.</div>'; return; }
+  if(fecha>hoyISO()){ msg.innerHTML='<div class="msg-warn">No puedes registrar una fecha futura.</div>'; return; }
+  const store=getStore();
+  const movs=store[editState.hab]||[];
   const idx=movs.findIndex(x=>x.id===editState.id);
   if(idx<0) return;
-  movs[idx]={...movs[idx],tipo,fecha,nota};
+  movs[idx]=Object.assign({},movs[idx],{tipo:tipo,fecha:fecha,nota:nota});
   saveStore(store);
+  const hab=editState.hab;
   closeModal();
   renderHabitaciones();
+  if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
+  avisoDePeriodo(hab,fecha);
   onDataChanged();
 }
 
-function onDataChanged(){
-  if(typeof odPushCloud==='function') odPushCloud();
-}
+function onDataChanged(){ if(typeof odPushCloud==='function') odPushCloud(); }
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('show'); editState=null; }
 
-function closeModal(){
-  document.getElementById('modal-overlay').classList.remove('show');
-  editState=null;
-}
-
-function calcHab(movs,p){
-  if(!movs||movs.length===0) return {ausente:0,presente:p.dias,pendiente:false,sinMovs:true,periodos:[]};
-  const sorted=[...movs].sort((a,b)=>a.fecha.localeCompare(b.fecha));
-  let ausente=0,pendiente=false;
-  const periodos=[];
-  for(let i=0;i<sorted.length;i++){
-    const m=sorted[i];
-    if(m.tipo==='salida'){
-      const nx=sorted[i+1];
-      if(nx&&nx.tipo==='regreso'){
-        const dS=new Date(m.fecha+'T12:00:00'), dR=new Date(nx.fecha+'T12:00:00');
-        const dias=Math.max(0,Math.round((dR-dS)/86400000)-1);
-        ausente+=dias;
-        periodos.push({salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),
-          regStr:dR.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),dias});
-        i++;
-      } else {
-        const dS=new Date(m.fecha+'T12:00:00');
-        const dFin=new Date(p.finISO+'T12:00:00');
-        const dias=Math.max(0,Math.round((dFin-dS)/86400000)-1);
-        ausente+=dias;
-        pendiente=true;
-        periodos.push({salStr:dS.toLocaleDateString('es-PE',{day:'numeric',month:'short'}),regStr:'aún no regresa',dias});
-      }
-    }
-  }
-  const presente=Math.max(0,p.dias-ausente);
-  return {ausente,presente,pendiente,sinMovs:false,periodos};
-}
-
+/* ══════════════════════════════════════════════════════════
+   REPORTE
+   ══════════════════════════════════════════════════════════ */
 function renderReporte(){
-  const store=getStore(), key=getMes(), data=store[key]||{};
-  const p=getPeriodo(), [y,mo]=getMes().split('-').map(Number);
+  const p=getPeriodo(), mesKey=getMes();
+  const [y,mo]=mesKey.split('-').map(Number);
   const mesNombre=MONTHS[mo-1]+' '+y;
-  const results=ALL_HABS.map(h=>({h,r:calcHab(data[h],p)}));
+  const results=ALL_HABS.map(h=>({h:h,r:calcHab(h,p)}));
   const pendientes=results.filter(x=>x.r.pendiente);
-  const totalPresente=results.reduce((s,x)=>s+(x.r.presente||0),0);
+  const arrastres=results.filter(x=>x.r.arrastre&&!x.r.pendiente);
+  const totalPresente=results.reduce((s,x)=>s+x.r.presente,0);
   const totalAusente=results.reduce((s,x)=>s+x.r.ausente,0);
 
   let html='<div class="card">'
@@ -456,9 +571,12 @@ function renderReporte(){
     +'<div style="font-size:13px;color:var(--muted);margin-bottom:1rem">'+p.iniStr+' al '+p.finStr+' · '+p.dias+' días</div>';
 
   if(pendientes.length>0){
-    html+='<div class="msg-warn">⚠ '+pendientes.length+' habitación(es) todavía no registran su regreso: '+pendientes.map(x=>x.h).join(', ')+'. Sus días se cuentan hasta hoy o hasta el fin del periodo.</div>';
+    html+='<div class="msg-warn">⚠ '+pendientes.length+' habitación(es) todavía no registran su regreso: '+pendientes.map(x=>x.h).join(', ')+'. Sus días se cuentan hasta hoy o hasta el fin del periodo, lo que ocurra primero.</div>';
   }else{
     html+='<div class="msg-ok">✓ Todas las habitaciones tienen su información completa. Este reporte ya se puede usar en el sistema principal.</div>';
+  }
+  if(arrastres.length>0){
+    html+='<div class="hint" style="margin-bottom:1rem">ℹ Habitación(es) '+arrastres.map(x=>x.h).join(', ')+': la ausencia empezó antes del '+fdStrY(p.iniISO)+' y solo se cobran los días que caen dentro de este periodo.</div>';
   }
 
   html+='<div class="g3" style="margin-bottom:1.1rem">'
@@ -476,7 +594,11 @@ function renderReporte(){
       const badge=r.pendiente?'<span class="badge b-warn">Aún fuera</span>'
         :r.sinMovs?'<span class="badge b-neutral">Sin cambios</span>'
         :'<span class="badge b-ok">Completo</span>';
-      html+='<tr><td><strong>'+h+'</strong></td><td>'+r.presente+' de '+p.dias+'</td>'
+      const det=r.detalle.length>0
+        ? '<div style="font-size:11px;color:var(--muted);margin-top:3px">'
+          +r.detalle.map(d=>fdStr(d.salida)+' → '+(d.regreso?fdStr(d.regreso):'sin regreso')+(d.recortado?' (recortado)':'')).join(' · ')
+          +'</div>' : '';
+      html+='<tr><td><strong>'+h+'</strong>'+det+'</td><td>'+r.presente+' de '+p.dias+'</td>'
         +'<td>'+(r.ausente>0?r.ausente:'—')+'</td><td>'+badge+'</td></tr>';
     });
   });
@@ -488,12 +610,12 @@ function renderReporte(){
     +'</div></div>';
 
   document.getElementById('rep_content').innerHTML=html;
-  window._repResults=results.map(x=>({h:x.h,presente:x.r.presente,pendiente:x.r.pendiente}));
+  window._repResults=results.map(x=>({h:x.h,presente:x.r.presente,ausente:x.r.ausente,pendiente:x.r.pendiente}));
 }
 
 function copiarDias(){
   if(!window._repResults) return;
-  const lines=window._repResults.map(x=>'Hab '+x.h+': '+(x.pendiente?'aún fuera':x.presente+' días')).join('\n');
+  const lines=window._repResults.map(x=>'Hab '+x.h+': '+x.presente+' días presente'+(x.pendiente?' (aún fuera)':'')).join('\n');
   if(navigator.clipboard){
     navigator.clipboard.writeText(lines).then(()=>alert('Copiado:\n\n'+lines)).catch(()=>prompt('Copia estos datos:',lines));
   } else { prompt('Copia estos datos:',lines); }
@@ -503,28 +625,21 @@ function buildMesOptions(){
   const sel=document.getElementById('mes');
   const actual=defaultMes();
   const [cy,cm]=actual.split('-').map(Number);
-  const fmt=d=>d.toLocaleDateString('es-PE',{day:'numeric',month:'short'});
   let html='';
   for(let off=-11;off<=0;off++){
     let mo=cm+off, y=cy;
     while(mo>12){mo-=12;y+=1;}
     while(mo<1){mo+=12;y-=1;}
     const val=y+'-'+String(mo).padStart(2,'0');
-    const ini=new Date(y,mo-1,15);
-    const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
-    html+='<option value="'+val+'">'+fmt(ini)+' – '+fmt(fin)+'</option>';
+    html+='<option value="'+val+'">'+etiquetaPeriodo(val)+'</option>';
   }
   sel.innerHTML=html;
 }
 
-function todayFileStamp(){
-  const d=new Date();
-  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-}
+function todayFileStamp(){ return hoyISO(); }
 
 function descargarBackupJSON(){
-  const data=getStore();
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify(getStore(),null,2)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
   a.download='backup-ausencias-'+todayFileStamp()+'.json';
@@ -539,13 +654,15 @@ function restaurarBackupJSON(event){
   reader.onload=e=>{
     const msg=document.getElementById('backup-msg');
     try{
-      const parsed=JSON.parse(e.target.result);
-      if(typeof parsed!=='object'||Array.isArray(parsed)) throw new Error('formato inválido');
+      let parsed=JSON.parse(e.target.result);
+      if(typeof parsed!=='object'||parsed===null||Array.isArray(parsed)) throw new Error('formato inválido');
+      if(esFormatoViejo(parsed)) parsed=aplanar(parsed);   // backup del formato anterior
       if(!confirm('Esto reemplazará todos los datos guardados en este navegador con los del archivo. ¿Continuar?')) return;
       saveStore(parsed);
       renderHabitaciones();
       if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
       msg.innerHTML='<div class="msg-ok">✓ Backup restaurado correctamente.</div>';
+      onDataChanged();
     }catch(err){
       msg.innerHTML='<div class="msg-warn">No se pudo leer el archivo. Asegúrate de subir un backup válido.</div>';
     }
@@ -556,43 +673,38 @@ function restaurarBackupJSON(event){
 
 function descargarExcel(){
   const store=getStore();
-  const rows=[['Mes','Piso','Habitación','Tipo','Fecha','Nota']];
-  Object.keys(store).sort().forEach(mesKey=>{
-    const [y,mo]=mesKey.split('-').map(Number);
-    const mesNombre=MONTHS[mo-1]+' '+y;
-    ALL_HABS.forEach(hab=>{
-      const movs=(store[mesKey][hab]||[]).slice().sort((a,b)=>a.fecha.localeCompare(b.fecha));
-      const piso=HABS_P3.includes(hab)?3:4;
-      movs.forEach(m=>{
-        rows.push([mesNombre,piso,hab,m.tipo==='salida'?'Salida':'Regreso',m.fecha,m.nota||'']);
-      });
-    });
-  });
-  const resumenRows=[['Mes','Piso','Habitación','Días presente','Días ausente','Estado']];
-  Object.keys(store).sort().forEach(mesKey=>{
-    const [y,mo]=mesKey.split('-').map(Number);
-    const mesNombre=MONTHS[mo-1]+' '+y;
-    const ini=new Date(y,mo-1,15);
-    const fin=mo===12?new Date(y+1,0,15):new Date(y,mo,15);
-    const dias=Math.round((fin-ini)/86400000);
-    const finISO=fin.toISOString().split('T')[0];
-    const p={dias,finISO};
-    ALL_HABS.forEach(hab=>{
-      const r=calcHab(store[mesKey][hab],p);
-      const piso=HABS_P3.includes(hab)?3:4;
-      const estado=r.pendiente?'Aún fuera':(r.sinMovs?'Sin cambios':'Completo');
-      resumenRows.push([mesNombre,piso,hab,r.presente,r.ausente,estado]);
+  const hist=[['Piso','Habitación','Tipo','Fecha','Periodo','Nota']];
+  ALL_HABS.forEach(hab=>{
+    const piso=HABS_P3.includes(hab)?3:4;
+    movsDe(hab).forEach(m=>{
+      hist.push([piso,hab,m.tipo==='salida'?'Salida':'Regreso',m.fecha,etiquetaPeriodo(mesKeyDe(m.fecha)),m.nota||'']);
     });
   });
 
+  const sel=document.getElementById('mes');
+  const periodos=Array.from(sel.options).map(o=>o.value);
+  const guardado=sel.value;
+  const resumen=[['Periodo','Días periodo','Piso','Habitación','Días presente','Días ausente','Estado']];
+  periodos.forEach(mk=>{
+    sel.value=mk;
+    const p=getPeriodo();
+    ALL_HABS.forEach(hab=>{
+      const r=calcHab(hab,p);
+      const piso=HABS_P3.includes(hab)?3:4;
+      const estado=r.pendiente?'Aún fuera':(r.sinMovs?'Sin cambios':'Completo');
+      resumen.push([etiquetaPeriodo(mk),p.dias,piso,hab,r.presente,r.ausente,estado]);
+    });
+  });
+  sel.value=guardado;
+
   const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resumenRows),'Resumen');
-  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'Historial completo');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(resumen),'Resumen');
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(hist),'Historial completo');
   XLSX.writeFile(wb,'control-ausencias-'+todayFileStamp()+'.xlsx');
 }
 
 async function borrarTodo(){
-  if(!confirm('⚠️ Esto borrará TODOS los movimientos registrados (todos los meses y habitaciones), en este navegador y en OneDrive si está conectado.\n\n¿Seguro que quieres continuar?')) return;
+  if(!confirm('⚠️ Esto borrará TODOS los movimientos registrados (todas las habitaciones y periodos), en este navegador y en OneDrive si está conectado.\n\n¿Seguro que quieres continuar?')) return;
   if(!confirm('🔴 Confirmación final: los datos se van a eliminar y no se pueden recuperar (salvo que tengas un backup descargado).\n\n¿Borrar todo de todas formas?')) return;
   saveStore({});
   openHab=null;
@@ -610,6 +722,7 @@ async function borrarTodo(){
   if(document.getElementById('tab-rep').classList.contains('active')) renderReporte();
 }
 
+migrarSiHaceFalta();
 buildMesOptions();
 document.getElementById('mes').value=defaultMes();
 onMesChange();
@@ -623,7 +736,7 @@ onMesChange();
   var SCOPES = ['Files.ReadWrite.All','User.Read'];
   var REDIRECT = 'https://walsedy.github.io/gastos-casa/';
   var SHARE_URL = 'https://1drv.ms/x/c/059923ca27721cd7/IQCvx67DaKySSrsodbdTlA7qAbS4OGYEVeGt6eO0P7KBwsU?e=bUQJm4';
-  var HEADERS_AUS = ['MesKey','Periodo','Piso','Habitación','Tipo','Fecha','Nota','ID'];
+  var HEADERS_AUS = ['Piso','Habitación','Tipo','Fecha','Nota','ID'];
   var odApp=null, odFileId=null, odDriveId=null, odConnected=false, odSyncing=false;
 
   function badge(txt,bg,col){
@@ -687,7 +800,7 @@ onMesChange();
       var names=(sheets.value||[]).map(function(s){return s.name;});
       if(names.indexOf('Ausencias')===-1){
         await odGraph(wbBase()+'/worksheets',{method:'POST',body:JSON.stringify({name:'Ausencias'})});
-        await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A1:H1')",{method:'PATCH',body:JSON.stringify({values:[HEADERS_AUS]})});
+        await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A1:F1')",{method:'PATCH',body:JSON.stringify({values:[HEADERS_AUS]})});
       }
     }catch(e){console.warn('ensureAusenciasSheet',e);}
   }
@@ -695,28 +808,38 @@ onMesChange();
   function storeToRows(){
     var store=getStore();
     var rows=[HEADERS_AUS];
-    Object.keys(store).sort().forEach(function(mesKey){
-      var mo=parseInt(mesKey.split('-')[1],10), y=mesKey.split('-')[0];
-      var periodo=(MONTHS[mo-1]||'')+' '+y;
-      ALL_HABS.forEach(function(hab){
-        var movs=(store[mesKey][hab]||[]).slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);});
-        var piso=HABS_P3.indexOf(hab)!==-1?3:4;
-        movs.forEach(function(m){
-          rows.push([mesKey,periodo,piso,hab,m.tipo,m.fecha,m.nota||'',m.id]);
-        });
+    ALL_HABS.forEach(function(hab){
+      var piso=HABS_P3.indexOf(hab)!==-1?3:4;
+      var movs=(store[String(hab)]||[]).slice().sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha));});
+      movs.forEach(function(m){
+        rows.push([piso,hab,m.tipo,m.fecha,m.nota||'',m.id]);
       });
     });
     return rows;
   }
 
+  // Lee la hoja tolerando el formato antiguo de 8 columnas y normalizando
+  // fechas que Excel haya convertido a número de serie o a texto regional.
   function rowsToStore(rows){
+    if(!rows||rows.length<2) return {};
+    var head=(rows[0]||[]).map(function(x){return String(x||'').trim().toLowerCase();});
+    var legacy = head.indexOf('meskey')!==-1 || head.length>=8;
+    var iH=legacy?3:1, iT=legacy?4:2, iF=legacy?5:3, iN=legacy?6:4, iI=legacy?7:5;
     var store={};
     rows.slice(1).forEach(function(r){
-      if(!r||!r[0]) return;
-      var mesKey=String(r[0]), hab=String(r[3]), tipo=String(r[4]), fecha=String(r[5]), nota=r[6]||'', id=r[7]||('m'+Math.random());
-      if(!store[mesKey]) store[mesKey]={};
-      if(!store[mesKey][hab]) store[mesKey][hab]=[];
-      store[mesKey][hab].push({tipo:tipo,fecha:fecha,nota:nota,id:id});
+      if(!r) return;
+      var hab=String(r[iH]===undefined?'':r[iH]).trim().replace(/\.0$/,'');
+      if(!/^\d{3}$/.test(hab)) return;
+      var tipo=String(r[iT]===undefined?'':r[iT]).trim().toLowerCase();
+      if(tipo.indexOf('sal')===0) tipo='salida';
+      else if(tipo.indexOf('reg')===0) tipo='regreso';
+      else return;
+      var fecha=toISO(r[iF]);
+      if(!fecha) return;
+      var id=String(r[iI]===undefined?'':r[iI]).trim()||nuevoId();
+      if(!store[hab]) store[hab]=[];
+      if(store[hab].some(function(x){return x.id===id||(x.tipo===tipo&&x.fecha===fecha);})) return;
+      store[hab].push({id:id,tipo:tipo,fecha:fecha,nota:r[iN]||''});
     });
     return store;
   }
@@ -733,7 +856,10 @@ onMesChange();
       for(var i=0;i<vals.length;i+=20){
         var chunk=vals.slice(i,Math.min(i+20,vals.length));
         var startRow=i+1, endRow=startRow+chunk.length-1;
-        await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A"+startRow+':'+cols+endRow+"')",{method:'PATCH',body:JSON.stringify({values:chunk})});
+        // numberFormat '@' en la columna Fecha: impide que Excel convierta
+        // "2026-07-03" en un número de serie y lo devuelva roto en el próximo sync.
+        var nf=chunk.map(function(row){ return row.map(function(_,ci){ return ci===3?'@':'General'; }); });
+        await odGraph(wbBase()+"/worksheets/Ausencias/range(address='A"+startRow+':'+cols+endRow+"')",{method:'PATCH',body:JSON.stringify({values:chunk,numberFormat:nf})});
       }
       var ts=new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
       badge('☁️ Guardado '+ts,'#f0fdf4','#15803d');
