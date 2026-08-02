@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gastos de Casa — Luz y Agua</title>
-<!-- v2.3-whatsapp -->
+<!-- v2.2-20260705215003 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
@@ -114,7 +114,6 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
   <button class="tab active" onclick="showTab('datos')">📝 Registrar mes</button>
   <button class="tab" onclick="showTab('historial')">📋 Historial</button>
   <button class="tab" onclick="showTab('reportes')">📄 Reportes</button>
-  <button class="tab" onclick="showTab('whatsapp')">📲 WhatsApp</button>
   <button class="tab" onclick="showTab('dashboard')">📊 Dashboard</button>
 </div>
 
@@ -208,11 +207,6 @@ input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(37,99
   <div id="reportes_container"></div>
 </div>
 
-<!-- WHATSAPP -->
-<div id="pane-whatsapp" class="pane">
-  <div id="whatsapp_container"></div>
-</div>
-
 <!-- DASHBOARD -->
 <div id="pane-dashboard" class="pane">
   <div id="dashboard_container"></div>
@@ -236,13 +230,12 @@ function getSavedPrev(){ try{ return JSON.parse(localStorage.getItem(PREV_KEY)||
 
 // ===================== TABS =====================
 function showTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>{ el.classList.toggle('active',['datos','historial','reportes','whatsapp','dashboard'][i]===t); });
+  document.querySelectorAll('.tab').forEach((el,i)=>{ el.classList.toggle('active',['datos','historial','reportes','dashboard'][i]===t); });
   document.querySelectorAll('.pane').forEach(el=>el.classList.remove('active'));
   var pane = document.getElementById('pane-'+t);
   if(pane) pane.classList.add('active');
   if(t==='historial') renderHistorial();
   if(t==='reportes') renderReportes();
-  if(t==='whatsapp') renderWhatsapp();
   if(t==='dashboard') renderDashboard();
 }
 
@@ -1259,117 +1252,7 @@ function imprimirReporte(){
   setTimeout(()=>w.print(),400);
 }
 
-// ===================== WHATSAPP =====================
-const WA_KEY = 'gastos_casa_whatsapp';
-const WA_DEFAULT_NUMS = ['995206164','996872132'];
-function getWaConfig(){
-  try{ var cfg=JSON.parse(localStorage.getItem(WA_KEY)||'{}'); }catch(e){ var cfg={}; }
-  var changed=false;
-  ALL_HABS.forEach(function(code){
-    var key='hab'+code;
-    if(!cfg[key] || (!cfg[key][0] && !cfg[key][1])){
-      cfg[key]=[WA_DEFAULT_NUMS[0],WA_DEFAULT_NUMS[1]];
-      changed=true;
-    }
-  });
-  if(changed) saveWaConfig(cfg);
-  return cfg;
-}
-function saveWaConfig(cfg){ localStorage.setItem(WA_KEY, JSON.stringify(cfg)); }
-
-function renderWhatsapp(){
-  const regs = getRegistros();
-  const cont = document.getElementById('whatsapp_container');
-  if(!regs.length){
-    cont.innerHTML = '<div class="empty-st"><div class="ei">📲</div><p>Aún no hay meses guardados.</p></div>';
-    return;
-  }
-  const opts = [...regs].reverse().map(r=>'<option value="'+r.fecha_act+'">'+(r.periodo_label||r.periodo)+'</option>').join('');
-  cont.innerHTML =
-    '<div class="card" style="margin-bottom:1rem">'
-    +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'
-    +'<div style="font-size:14px;font-weight:600">📲 Enviar reportes por WhatsApp</div>'
-    +'<select id="wa-mes-sel" onchange="renderWaCards()" style="max-width:220px;padding:7px 10px;font-size:13px;border-radius:var(--rs);border:1px solid var(--bs);background:var(--bg);color:var(--text);font-family:inherit">'+opts+'</select>'
-    +'</div>'
-    +'<div style="font-size:12px;color:var(--muted);margin-top:8px">Ingresa el número con código de país, sin + ni espacios (ej: 51987654321). Se guarda automáticamente.</div>'
-    +'</div>'
-    +'<div id="wa-cards" class="hab-grid" style="grid-template-columns:repeat(3,1fr)"></div>';
-  renderWaCards();
-}
-
-function waMensaje(hab, r, periodo_label){
-  const luz=(hab.luz_piso||0)+(hab.luz_com||0);
-  const agua=hab.agua||0;
-  const total=hab.total||0;
-  return 'Hola! Te comparto el reporte de gastos de la Hab. '+hab.hab+'\n'
-    +'Periodo: '+periodo_label+'\n'
-    +'Dias presentes: '+hab.dias+'\n\n'
-    +'Luz: S/. '+luz.toFixed(2)+'\n'
-    +'Agua: S/. '+agua.toFixed(2)+'\n\n'
-    +'Total a pagar: S/. '+total.toFixed(2);
-}
-
-function renderWaCards(){
-  const sel = document.getElementById('wa-mes-sel');
-  if(!sel) return;
-  const regs = getRegistros();
-  const r = regs.find(x=>x.fecha_act===sel.value);
-  const cardsEl = document.getElementById('wa-cards');
-  if(!r){ cardsEl.innerHTML=''; return; }
-  const habs = r.habitaciones||[];
-  const cfg = getWaConfig();
-
-  let html='';
-  [[3,HABS_P3],[4,HABS_P4]].forEach(([piso,pisoHabs])=>{
-    pisoHabs.forEach(code=>{
-      const h = habs.find(x=>x.hab===code);
-      if(!h) return;
-      const key='hab'+code;
-      const num1 = (cfg[key]&&cfg[key][0]) || '';
-      const num2 = (cfg[key]&&cfg[key][1]) || '';
-      html += '<div class="card" style="padding:1rem">'
-        +'<div style="font-size:14px;font-weight:700;margin-bottom:2px">Hab '+code+' <span style="font-size:11px;color:var(--muted);font-weight:400">Piso '+piso+'</span></div>'
-        +'<div style="font-size:12px;color:var(--muted);margin-bottom:8px">Total: <strong>S/. '+(h.total||0).toFixed(2)+'</strong> · '+h.dias+' días</div>'
-        +'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">'
-        +'<input type="text" placeholder="Tel. 1" id="wa-tel1-'+code+'" value="'+num1+'" onblur="guardarTelWa('+code+')" style="padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--bs);background:var(--bg)">'
-        +'<input type="text" placeholder="Tel. 2 (opcional)" id="wa-tel2-'+code+'" value="'+num2+'" onblur="guardarTelWa('+code+')" style="padding:6px 8px;font-size:12px;border-radius:6px;border:1px solid var(--bs);background:var(--bg)">'
-        +'</div>'
-        +'<div style="display:flex;gap:6px">'
-        +'<button class="btn btn-sm" style="flex:1;background:#25D366;color:#fff;border-color:#1ea952" onclick="enviarWa('+code+',1,\''+r.fecha_act+'\')">📲 Tel. 1</button>'
-        +'<button class="btn btn-sm" style="flex:1;background:#25D366;color:#fff;border-color:#1ea952" onclick="enviarWa('+code+',2,\''+r.fecha_act+'\')">📲 Tel. 2</button>'
-        +'</div>'
-        +'</div>';
-    });
-  });
-  cardsEl.innerHTML = html;
-}
-
-function guardarTelWa(code){
-  const t1el = document.getElementById('wa-tel1-'+code);
-  const t2el = document.getElementById('wa-tel2-'+code);
-  const cfg = getWaConfig();
-  cfg['hab'+code] = [t1el?t1el.value.trim():'', t2el?t2el.value.trim():''];
-  saveWaConfig(cfg);
-}
-
-function enviarWa(code, cual, fecha_act){
-  guardarTelWa(code);
-  const cfg = getWaConfig();
-  const nums = cfg['hab'+code] || [];
-  const numero = cual===1 ? nums[0] : nums[1];
-  if(!numero){ alert('Ingresa el número de teléfono '+cual+' primero.'); return; }
-  const regs = getRegistros();
-  const r = regs.find(x=>x.fecha_act===fecha_act);
-  if(!r) return;
-  const h = (r.habitaciones||[]).find(x=>x.hab===code);
-  if(!h) return;
-  const mensaje = waMensaje(h, r, r.periodo_label||r.periodo);
-  const url = 'https://wa.me/'+numero.replace(/\D/g,'')+'?text='+encodeURIComponent(mensaje);
-  window.open(url, '_blank');
-}
-
 // ═══════════════════════════════════════════════
-// ONEDRIVE SYNC  (appended — does not modify app)
 (function(){
   var OD_ID  = 'c9c4478d-f8c5-4253-b1ed-c20fedaa5e9b';
   var SCOPES = ['Files.ReadWrite.All','User.Read'];
